@@ -35,10 +35,9 @@ if not DEBUG and SECRET_KEY.startswith('django-insecure-'):
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get(
     'ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]'
 ).split(',') if host.strip()]
-if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
-    ALLOWED_HOSTS.append(os.environ['RAILWAY_PUBLIC_DOMAIN'].strip())
-if os.environ.get('RAILWAY_PROJECT_ID'):
-    ALLOWED_HOSTS.append('healthcheck.railway.app')
+# Render support
+if os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
+    ALLOWED_HOSTS.append(os.environ['RENDER_EXTERNAL_HOSTNAME'].strip())
 
 
 # Application definition
@@ -56,6 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -137,6 +137,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = Path(os.environ.get('SADARA_MEDIA_ROOT', str(BASE_DIR / 'media')))
