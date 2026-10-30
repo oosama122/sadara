@@ -1,1142 +1,560 @@
+/* Shared public-site behavior. API requests use the site's origin by default. */
 const API_BASE = (() => {
-    const p = window.location.port;
-    const h = window.location.hostname || '127.0.0.1';
-    // In production (no port) or when running locally on Flask (5000) or Django (5001), use relative paths
-    if (!p || p === '5000' || p === '5001') return '';
-    // Otherwise point to Django API server on the same hostname
-    return `http://${h}:5001`;
+    const configured = window.SADARA_API_BASE || document.querySelector('meta[name="api-base"]')?.content;
+    if (configured) return String(configured).replace(/\/$/, '');
+    return window.location.protocol === 'file:' ? 'http://127.0.0.1:5001' : '';
 })();
 
-function initPage() {
-    // ==========================================
-    // 1. Theme Toggle (Dark / Light Mode)
-    // ==========================================
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-    }
+(() => {
+    'use strict';
 
-    // ==========================================
-    // 2. Mobile Menu Toggle
-    // ==========================================
-    const menuToggle = document.getElementById('menu-toggle');
-    const navMenu = document.getElementById('nav-menu');
-    const navLinks = document.querySelectorAll('.nav-link');
-    
-    if (menuToggle && navMenu) {
-        menuToggle.addEventListener('click', () => {
-            navMenu.classList.toggle('active');
-            const icon = menuToggle.querySelector('i');
-            if (navMenu.classList.contains('active')) {
-                icon.className = 'fas fa-times';
-            } else {
-                icon.className = 'fas fa-bars';
-            }
-        });
-        
-        // Close menu when clicking nav link
-        navLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                navMenu.classList.remove('active');
-                menuToggle.querySelector('i').className = 'fas fa-bars';
-            });
-        });
-    }
+    const storage = {
+        get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+        set(key, value) { try { localStorage.setItem(key, value); } catch { /* Private browsing may disable storage. */ } }
+    };
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const scrollBehavior = reducedMotion ? 'auto' : 'smooth';
 
-    // ==========================================
-    // 3. Header Scrolled Styling & Back To Top
-    // ==========================================
-    const floatToTop = document.getElementById('float-totop');
-    
-    if (floatToTop) {
-        floatToTop.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-    }
-
-    // ==========================================
-    // 4. Dynamic Countdown Timer (Urgency Element)
-    // ==========================================
-    let countdownInterval;
-    function initCountdown(targetTimestamp) {
-        const daysEl = document.getElementById('days');
-        if (!daysEl) return;
-        
-        let countdownDate = targetTimestamp;
-        if (!countdownDate) {
-            const storedDeadline = localStorage.getItem('admission_deadline');
-            if (storedDeadline && new Date(storedDeadline) > new Date()) {
-                countdownDate = new Date(storedDeadline).getTime();
-            } else {
-                const now = new Date();
-                const futureDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 8, 23, 59, 59);
-                countdownDate = futureDate.getTime();
-                localStorage.setItem('admission_deadline', futureDate.toISOString());
-            }
-        }
-        
-        if (countdownInterval) clearInterval(countdownInterval);
-        
-        const updateCountdown = () => {
-            const now = new Date().getTime();
-            const distance = countdownDate - now;
-            
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            
-            document.getElementById('days').innerText = String(days).padStart(2, '0');
-            document.getElementById('hours').innerText = String(hours).padStart(2, '0');
-            document.getElementById('minutes').innerText = String(minutes).padStart(2, '0');
-            document.getElementById('seconds').innerText = String(seconds).padStart(2, '0');
-            
-            if (distance < 0) {
-                clearInterval(countdownInterval);
-                document.getElementById('days').innerText = "00";
-                document.getElementById('hours').innerText = "00";
-                document.getElementById('minutes').innerText = "00";
-                document.getElementById('seconds').innerText = "00";
-            }
-        };
-        
-        updateCountdown();
-        countdownInterval = setInterval(updateCountdown, 1000);
-    }
-
-    // ==========================================
-    // 5. Counter Animations (Stats Section)
-    // ==========================================
-    function initCounterAnimation() {
-        const stats = document.querySelectorAll('.stat-number');
-        const speed = 200;
-        
-        if (stats.length > 0) {
-            const animateStats = (entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const target = entry.target;
-                        const targetNumber = parseInt(target.getAttribute('data-target'));
-                        let currentNumber = 0;
-                        const suffix = target.getAttribute('data-suffix') || '+';
-                        
-                        const increment = Math.ceil(targetNumber / speed);
-                        
-                        const updateCount = () => {
-                            currentNumber += increment;
-                            if (currentNumber < targetNumber) {
-                                target.innerText = currentNumber + suffix;
-                                setTimeout(updateCount, 15);
-                            } else {
-                                target.innerText = targetNumber + suffix;
-                            }
-                        };
-                        
-                        updateCount();
-                        observer.unobserve(target);
-                    }
-                });
-            };
-            
-            const statsObserver = new IntersectionObserver(animateStats, {
-                threshold: 0.5
-            });
-            
-            stats.forEach(stat => statsObserver.observe(stat));
-        }
-    }
-
-    // ==========================================
-    // Fetch settings from API and apply to page
-    // ==========================================
-    // Helper function to apply settings to the DOM
-    function applySettings(settings) {
-        window.latestSettings = settings;
-        // Apply to top bar and footer
-        if (settings.top_phone) {
-            const tPhone = document.getElementById('top-phone');
-            if (tPhone) tPhone.innerText = settings.top_phone;
-            const fPhone = document.getElementById('footer-phone');
-            if (fPhone) fPhone.innerText = settings.top_phone;
-            const fWhatsapp = document.getElementById('footer-whatsapp');
-            if (fWhatsapp) fWhatsapp.setAttribute('href', 'https://wa.me/' + settings.top_phone.replace(/[^0-9]/g, ''));
-        }
-        if (settings.top_email) {
-            const tEmail = document.getElementById('top-email');
-            if (tEmail) tEmail.innerText = settings.top_email;
-            const fEmail = document.getElementById('footer-email');
-            if (fEmail) fEmail.innerText = settings.top_email;
-        }
-        if (settings.top_address) {
-            const tAddress = document.getElementById('top-address');
-            if (tAddress) tAddress.innerText = settings.top_address;
-            const fAddress = document.getElementById('footer-address');
-            if (fAddress) fAddress.innerText = settings.top_address;
-        }
-        
-        // Social links
-        if (settings.social_facebook) {
-            const fb = document.getElementById('top-fb');
-            if (fb) fb.href = settings.social_facebook;
-        }
-        if (settings.social_twitter) {
-            const tw = document.getElementById('top-tw');
-            if (tw) tw.href = settings.social_twitter;
-        }
-        if (settings.social_linkedin) {
-            const li = document.getElementById('top-li');
-            if (li) li.href = settings.social_linkedin;
-        }
-        if (settings.social_youtube) {
-            const yt = document.getElementById('top-yt');
-            if (yt) yt.href = settings.social_youtube;
-        }
-        
-        // Hero section
-        if (settings.hero_tag) {
-            const tagEl = document.getElementById('hero-tag');
-            if (tagEl) tagEl.innerHTML = `<i class="fas fa-graduation-cap"></i> ${settings.hero_tag}`;
-        }
-        if (settings.hero_title) {
-            const titleEl = document.getElementById('hero-title');
-            if (titleEl) {
-                const subtitle = settings.hero_subtitle || 'صدارة التعليم لمستقبل واعد';
-                titleEl.innerHTML = `${settings.hero_title} <br><span id="hero-subtitle">${subtitle}</span>`;
-            }
-        }
-        if (settings.hero_desc) {
-            const descEl = document.getElementById('hero-desc');
-            if (descEl) descEl.innerText = settings.hero_desc;
-        }
-        
-        // Stats section
-        if (settings.stat_students) {
-            const el = document.getElementById('stat-students');
-            if (el) {
-                el.setAttribute('data-target', settings.stat_students);
-                if (el.innerText !== "0") el.innerText = settings.stat_students + (el.getAttribute('data-suffix') || '+');
-            }
-        }
-        if (settings.stat_depts) {
-            const el = document.getElementById('stat-depts');
-            if (el) {
-                el.setAttribute('data-target', settings.stat_depts);
-                if (el.innerText !== "0") el.innerText = settings.stat_depts + (el.getAttribute('data-suffix') || '');
-            }
-        }
-        if (settings.stat_employment) {
-            const el = document.getElementById('stat-employment');
-            if (el) {
-                el.setAttribute('data-target', settings.stat_employment);
-                if (el.innerText !== "0") el.innerText = settings.stat_employment + (el.getAttribute('data-suffix') || '%');
-            }
-        }
-        if (settings.stat_labs) {
-            const el = document.getElementById('stat-labs');
-            if (el) {
-                el.setAttribute('data-target', settings.stat_labs);
-                if (el.innerText !== "0") el.innerText = settings.stat_labs + (el.getAttribute('data-suffix') || '');
-            }
-        }
-        
-        
-        // About Section settings (on about.html)
-        if (settings.about_us_p1) {
-            const el = document.getElementById('about-us-p1');
-            if (el) el.innerText = settings.about_us_p1;
-        }
-        if (settings.about_us_p2) {
-            const el = document.getElementById('about-us-p2');
-            if (el) el.innerText = settings.about_us_p2;
-        }
-        if (settings.about_image) {
-            const el = document.getElementById('about-image');
-            if (el) el.src = settings.about_image.startsWith('http') ? settings.about_image : (API_BASE + settings.about_image);
-        }
-        if (settings.about_vision) {
-            const el = document.getElementById('about-vision');
-            if (el) el.innerText = settings.about_vision;
-        }
-        if (settings.about_mission) {
-            const el = document.getElementById('about-mission');
-            if (el) el.innerText = settings.about_mission;
-        }
-        if (settings.about_goals) {
-            const el = document.getElementById('about-goals');
-            if (el) el.innerText = settings.about_goals;
-        }
-        if (settings.dean_name) {
-            const el = document.getElementById('dean-name');
-            if (el) el.innerText = settings.dean_name;
-        }
-        if (settings.dean_title) {
-            const el = document.getElementById('dean-title');
-            if (el) el.innerText = settings.dean_title;
-        }
-        if (settings.dean_avatar) {
-            const el = document.getElementById('dean-avatar');
-            if (el) el.src = settings.dean_avatar.startsWith('http') ? settings.dean_avatar : (API_BASE + settings.dean_avatar);
-        }
-        if (settings.dean_message_quote) {
-            const el = document.getElementById('dean-message-quote');
-            if (el) el.innerText = settings.dean_message_quote.startsWith('"') ? settings.dean_message_quote : `"${settings.dean_message_quote}"`;
-        }
-        if (settings.dean_message_p2) {
-            const el = document.getElementById('dean-message-p2');
-            if (el) el.innerText = settings.dean_message_p2;
-        }
-
-        // Re-initialize dynamic animations that depend on these values
-        if (settings.countdown_end) {
-            initCountdown(new Date(settings.countdown_end).getTime());
-        } else {
-            initCountdown();
-        }
-        initCounterAnimation();
-    }
-
-    // Try loading settings from cache first for instant page rendering
-    const cachedSettings = localStorage.getItem('sadara_settings');
-    if (cachedSettings) {
+    function safeUrl(value, fallback = '') {
+        if (typeof value !== 'string' || !value.trim()) return fallback;
         try {
-            applySettings(JSON.parse(cachedSettings));
-        } catch (e) {
-            console.error('Error applying cached settings:', e);
-        }
-    } else {
-        // Fallback defaults
-        initCountdown();
-        initCounterAnimation();
+            const url = new URL(value, window.location.href);
+            return ['http:', 'https:', 'file:'].includes(url.protocol) ? url.href : fallback;
+        } catch { return fallback; }
     }
 
-    // Fetch settings from API in the background and update/cache
-    fetch(API_BASE + '/api/settings')
-        .then(res => res.json())
-        .then(settings => {
-            const cached = localStorage.getItem('sadara_settings');
-            const newStr = JSON.stringify(settings);
-            if (cached !== newStr) {
-                localStorage.setItem('sadara_settings', newStr);
-                applySettings(settings);
+    function mediaUrl(value) {
+        const path = typeof value === 'string' ? value : '';
+        return safeUrl(path.startsWith('/media/') ? API_BASE + path : path, 'assets/images/hero.png');
+    }
+
+    async function apiRequest(path, options = {}) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        try {
+            const response = await fetch(API_BASE + path, {
+                ...options,
+                headers: { Accept: 'application/json', ...options.headers },
+                signal: controller.signal,
+                cache: 'no-store'
+            });
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('تعذر الاتصال بخدمة الموقع. يرجى المحاولة مجدداً.');
             }
-        })
-        .catch(err => {
-            console.warn('Backend settings API not reachable. Using fallback/cached settings.', err);
-        });
-
-    // Load cached departments immediately, then refresh from API
-    loadDepartments();
-
-    // Load cached labs immediately, then refresh from API
-    loadLabs();
-
-    // Load cached tuition fees immediately, then refresh from API
-    loadFees();
-
-    // ==========================================
-    // 6. Department Tab Switching
-    // ==========================================
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const deptPanels = document.querySelectorAll('.dept-panel');
-    
-    if (tabBtns.length > 0) {
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const target = btn.getAttribute('data-tab');
-                
-                tabBtns.forEach(b => b.classList.remove('active'));
-                deptPanels.forEach(p => p.classList.remove('active'));
-                
-                btn.classList.add('active');
-                const panel = document.getElementById(target);
-                if (panel) panel.classList.add('active');
-            });
-        });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'تعذر إتمام الطلب. يرجى مراجعة البيانات والمحاولة مجدداً.');
+            return data;
+        } catch (error) {
+            if (error.name === 'AbortError') throw new Error('استغرق الاتصال وقتاً طويلاً. تحقق من اتصالك وحاول مجدداً.');
+            if (error instanceof TypeError) throw new Error('تعذر الاتصال بالخادم. تحقق من اتصالك وحاول مجدداً.');
+            throw error;
+        } finally { clearTimeout(timeout); }
     }
 
-    // ==========================================
-    // 7. Testimonials Carousel
-    // ==========================================
-    const track = document.querySelector('.carousel-track');
-    const nextBtn = document.querySelector('.carousel-btn-next');
-    const prevBtn = document.querySelector('.carousel-btn-prev');
-    const dotsContainer = document.querySelector('.carousel-dots');
-    
-    if (track && dotsContainer) {
-        const slides = Array.from(track.children);
-        let currentIndex = 0;
-        const totalSlides = slides.length;
-        
-        slides.forEach((_, idx) => {
-            const dot = document.createElement('button');
-            dot.className = `carousel-dot ${idx === 0 ? 'active' : ''}`;
-            dot.setAttribute('aria-label', `Slide ${idx + 1}`);
-            dotsContainer.appendChild(dot);
-        });
-        
-        const dots = Array.from(dotsContainer.children);
-        
-        const updateCarousel = (index) => {
-            track.style.transform = `translateX(${index * 100}%)`;
-            dots.forEach(dot => dot.classList.remove('active'));
-            dots[index].classList.add('active');
-            currentIndex = index;
+    function initNavigation() {
+        const themeButton = document.getElementById('theme-toggle');
+        if (themeButton) {
+            const updateLabel = () => {
+                const dark = document.documentElement.dataset.theme === 'dark';
+                themeButton.setAttribute('aria-label', dark ? 'تفعيل المظهر الفاتح' : 'تفعيل المظهر الداكن');
+                themeButton.setAttribute('aria-pressed', String(dark));
+                const icon = themeButton.querySelector('i');
+                if (icon && !themeButton.classList.contains('theme-toggle-label')) icon.className = dark ? 'fas fa-sun' : 'fas fa-moon';
+            };
+            updateLabel();
+            themeButton.addEventListener('click', () => {
+                const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                document.documentElement.dataset.theme = theme;
+                storage.set('theme', theme);
+                updateLabel();
+            });
+        }
+
+        const menuButton = document.getElementById('menu-toggle');
+        const menu = document.getElementById('nav-menu');
+        if (menuButton && menu) {
+            const toggleMenu = open => {
+                menu.classList.toggle('active', open);
+                menuButton.setAttribute('aria-expanded', String(open));
+                menuButton.setAttribute('aria-label', open ? 'إغلاق القائمة' : 'فتح القائمة');
+                const icon = menuButton.querySelector('i');
+                if (icon) icon.className = open ? 'fas fa-times' : 'fas fa-bars';
+            };
+            menuButton.setAttribute('aria-controls', menu.id);
+            toggleMenu(false);
+            menuButton.addEventListener('click', () => toggleMenu(!menu.classList.contains('active')));
+            menu.querySelectorAll('a').forEach(link => link.addEventListener('click', () => toggleMenu(false)));
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && menu.classList.contains('active')) {
+                    toggleMenu(false);
+                    menuButton.focus();
+                }
+            });
+            document.addEventListener('click', event => {
+                if (!menu.contains(event.target) && !menuButton.contains(event.target)) toggleMenu(false);
+            });
+        }
+
+        const header = document.getElementById('header');
+        const toTop = document.getElementById('float-totop');
+        const updateScroll = () => {
+            const scrolled = window.scrollY > 50;
+            header?.classList.toggle('scrolled', scrolled);
+            toTop?.classList.toggle('show', scrolled);
         };
-        
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => {
-                let index = currentIndex + 1 >= totalSlides ? 0 : currentIndex + 1;
-                updateCarousel(index);
-            });
-        }
-        
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => {
-                let index = currentIndex - 1 < 0 ? totalSlides - 1 : currentIndex - 1;
-                updateCarousel(index);
-            });
-        }
-        
-        dots.forEach((dot, index) => {
-            dot.addEventListener('click', () => {
-                updateCarousel(index);
-            });
-        });
-        
-        let autoPlayInterval = setInterval(() => {
-            let index = currentIndex + 1 >= totalSlides ? 0 : currentIndex + 1;
-            updateCarousel(index);
-        }, 6000);
-        
-        const carouselContainer = document.querySelector('.carousel-container');
-        if (carouselContainer) {
-            carouselContainer.addEventListener('mouseenter', () => {
-                clearInterval(autoPlayInterval);
-            });
-            carouselContainer.addEventListener('mouseleave', () => {
-                autoPlayInterval = setInterval(() => {
-                    let index = currentIndex + 1 >= totalSlides ? 0 : currentIndex + 1;
-                    updateCarousel(index);
-                }, 6000);
-            });
-        }
+        window.addEventListener('scroll', updateScroll, { passive: true });
+        updateScroll();
+        toTop?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: scrollBehavior }));
+
+        // Ordinary page navigation preserves each page's metadata, styles and browser history.
+        const prefetched = new Set();
+        const prefetch = event => {
+            const link = event.target.closest?.('a[href]');
+            if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+            const url = new URL(link.href, location.href);
+            if (url.origin !== location.origin || !url.pathname.endsWith('.html') || url.pathname.includes('/dashbord/')) return;
+            if (prefetched.has(url.pathname)) return;
+            prefetched.add(url.pathname);
+            const hint = document.createElement('link');
+            hint.rel = 'prefetch';
+            hint.href = url.pathname;
+            document.head.appendChild(hint);
+        };
+        document.addEventListener('pointerover', prefetch, { passive: true });
+        document.addEventListener('focusin', prefetch);
     }
 
-    // ==========================================
-    // 8. FAQ Accordions
-    // ==========================================
-    const faqItems = document.querySelectorAll('.faq-item');
-    
-    if (faqItems.length > 0) {
-        faqItems.forEach(item => {
+    function initTabsAndFaq() {
+        const tabs = [...document.querySelectorAll('.tab-btn')];
+        tabs.forEach((tab, index) => {
+            const panel = document.getElementById(tab.dataset.tab);
+            if (!panel) return;
+            tab.id ||= `department-tab-${index}`;
+            tab.setAttribute('role', 'tab');
+            tab.setAttribute('aria-controls', panel.id);
+            panel.setAttribute('role', 'tabpanel');
+            panel.setAttribute('aria-labelledby', tab.id);
+            const select = () => tabs.forEach(button => {
+                const active = button === tab;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-selected', String(active));
+                button.tabIndex = active ? 0 : -1;
+                document.getElementById(button.dataset.tab)?.classList.toggle('active', active);
+            });
+            tab.setAttribute('aria-selected', String(tab.classList.contains('active')));
+            tab.tabIndex = tab.classList.contains('active') ? 0 : -1;
+            tab.addEventListener('click', select);
+            tab.addEventListener('keydown', event => {
+                let next;
+                if (event.key === 'ArrowLeft') next = (index + 1) % tabs.length;
+                if (event.key === 'ArrowRight') next = (index - 1 + tabs.length) % tabs.length;
+                if (event.key === 'Home') next = 0;
+                if (event.key === 'End') next = tabs.length - 1;
+                if (next !== undefined) { event.preventDefault(); tabs[next].click(); tabs[next].focus(); }
+            });
+        });
+        document.querySelector('.dept-tabs')?.setAttribute('role', 'tablist');
+
+        const items = [...document.querySelectorAll('.faq-item')];
+        items.forEach((item, index) => {
             const header = item.querySelector('.faq-header');
             const content = item.querySelector('.faq-content');
-            
-            header.addEventListener('click', () => {
-                const isActive = item.classList.contains('active');
-                
-                faqItems.forEach(i => {
-                    i.classList.remove('active');
-                    const c = i.querySelector('.faq-content');
-                    if (c) c.style.maxHeight = null;
+            if (!header || !content) return;
+            header.setAttribute('role', 'button');
+            header.tabIndex = 0;
+            content.id ||= `faq-answer-${index}`;
+            header.setAttribute('aria-controls', content.id);
+            header.setAttribute('aria-expanded', String(item.classList.contains('active')));
+            const toggle = () => {
+                const open = !item.classList.contains('active');
+                items.forEach(other => {
+                    other.classList.remove('active');
+                    other.querySelector('.faq-header')?.setAttribute('aria-expanded', 'false');
+                    const answer = other.querySelector('.faq-content');
+                    if (answer) answer.style.maxHeight = '';
                 });
-                
-                if (!isActive) {
+                if (open) {
                     item.classList.add('active');
-                    content.style.maxHeight = content.scrollHeight + "px";
+                    header.setAttribute('aria-expanded', 'true');
+                    content.style.maxHeight = content.scrollHeight + 'px';
                 }
-            });
-        });
-    }
-
-    // ==========================================
-    // 9. Quick Admission Form Submission
-    // ==========================================
-    const admissionForm = document.getElementById('quick-admission-form');
-    const formAlert = document.getElementById('form-success-alert');
-    
-    if (admissionForm) {
-        admissionForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const studentName = document.getElementById('student-name').value.trim();
-            const studentPhone = document.getElementById('student-phone').value.trim();
-            const studentGpa = document.getElementById('student-gpa').value.trim();
-            const studentDept = document.getElementById('student-dept').value;
-            const studentStream = document.getElementById('student-stream').value;
-            
-            if (studentName === '' || studentPhone === '' || studentGpa === '' || studentDept === '' || studentStream === '') {
-                alert('الرجاء تعبئة كافة الحقول بشكل صحيح.');
-                return;
-            }
-            
-            const submitBtn = admissionForm.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إرسال طلبك...';
-            
-            fetch(API_BASE + '/api/applicants', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: studentName,
-                    phone: studentPhone,
-                    gpa: parseFloat(studentGpa),
-                    stream: studentStream,
-                    department: studentDept
-                })
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('Submission failed');
-                return res.json();
-            })
-            .then(data => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-                admissionForm.reset();
-                
-                if (formAlert) {
-                    formAlert.style.display = 'block';
-                    formAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
-                    setTimeout(() => {
-                        formAlert.style.display = 'none';
-                    }, 8000);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('حدث خطأ أثناء إرسال طلبك. يرجى المحاولة مرة أخرى لاحقاً.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
-        });
-    }
-
-    const contactForm = document.getElementById('contact-form');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const submitBtn = contactForm.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
-            
-            const data = {
-                name: document.getElementById('contact-name').value.trim(),
-                email: document.getElementById('contact-email').value.trim(),
-                phone: document.getElementById('contact-phone').value.trim(),
-                subject: document.getElementById('contact-subject').value.trim(),
-                message: document.getElementById('contact-message').value.trim()
             };
-            
-            fetch(API_BASE + '/api/contact', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('Failed');
-                return res.json();
-            })
-            .then(resData => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-                contactForm.reset();
-                // Show success message
-                const successDiv = document.createElement('div');
-                successDiv.className = 'glass glass-padding animate-on-scroll animated';
-                successDiv.style.cssText = 'text-align: center; margin-top: 20px; border: 2px solid #2ecc71; background: rgba(46, 204, 113, 0.08);';
-                successDiv.innerHTML = `
-                    <i class="fas fa-check-circle" style="font-size: 3rem; color: #2ecc71; margin-bottom: 15px;"></i>
-                    <h3 style="color: #2ecc71; margin-bottom: 10px;">تم إرسال رسالتك بنجاح!</h3>
-                    <p style="color: var(--text-secondary);">شكراً لتواصلك معنا. سيقوم فريق شؤون الطلاب بالرد عليك في أقرب وقت ممكن.</p>
-                `;
-                contactForm.parentNode.appendChild(successDiv);
-                contactForm.style.display = 'none';
-                setTimeout(() => {
-                    contactForm.style.display = 'block';
-                    successDiv.remove();
-                }, 8000);
-            })
-            .catch(err => {
-                console.error(err);
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-                alert('حدث خطأ أثناء إرسال الرسالة. يرجى المحاولة مرة أخرى.');
+            header.addEventListener('click', toggle);
+            header.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
             });
         });
     }
 
-    // ==========================================
-    // 10. Scroll Animations (Scroll Reveal)
-    // ==========================================
-    window.initScrollRevealForNewElements = function() {
-        const revealElements = document.querySelectorAll('.animate-on-scroll:not(.animated)');
-        if (revealElements.length > 0) {
-            const revealOnScroll = (entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('animated');
-                        observer.unobserve(entry.target);
-                    }
-                });
-            };
-            
-            const revealObserver = new IntersectionObserver(revealOnScroll, {
-                threshold: 0.1
-            });
-            
-            revealElements.forEach(elem => revealObserver.observe(elem));
+    let revealObserver;
+    function revealContent() {
+        const elements = document.querySelectorAll('.animate-on-scroll:not(.animated)');
+        if (reducedMotion || !('IntersectionObserver' in window)) {
+            elements.forEach(element => element.classList.add('animated'));
+            return;
         }
-    };
-    
-    initScrollRevealForNewElements();
+        revealObserver ||= new IntersectionObserver(entries => entries.forEach(entry => {
+            if (entry.isIntersecting) { entry.target.classList.add('animated'); revealObserver.unobserve(entry.target); }
+        }), { threshold: 0.08 });
+        elements.forEach(element => revealObserver.observe(element));
+    }
 
-    // ==========================================
-    // 11. Dynamic Departments Loading with Cache
-    // ==========================================
-    function renderDepartments(depts) {
-        // Helper to resolve media URLs to backend
-        const resolveMediaUrl = (url) => {
-            if (!url) return '';
-            if (url.startsWith('http://') || url.startsWith('https://')) return url;
-            if (url.startsWith('/media/')) return API_BASE + url;
-            return url;
+    let countdownTimer;
+    function setCountdown(value) {
+        const units = ['days', 'hours', 'minutes', 'seconds'].map(id => document.getElementById(id));
+        if (units.some(unit => !unit)) return;
+        clearInterval(countdownTimer);
+        const deadline = Date.parse(value || '');
+        const container = units[0].closest('.countdown-box');
+        // An administrator supplies the deadline; never invent a deadline on each visit.
+        if (!Number.isFinite(deadline) || deadline <= Date.now()) {
+            if (container) container.hidden = true;
+            return;
+        }
+        if (container) container.hidden = false;
+        const update = () => {
+            const remaining = Math.max(0, deadline - Date.now());
+            const values = [Math.floor(remaining / 86400000), Math.floor(remaining / 3600000) % 24, Math.floor(remaining / 60000) % 60, Math.floor(remaining / 1000) % 60];
+            units.forEach((unit, index) => { unit.textContent = String(values[index]).padStart(2, '0'); });
+            if (!remaining) clearInterval(countdownTimer);
         };
-
-        // Apply to index.html (Homepage)
-        const medicalTab = document.getElementById('medical-tab');
-        const techTab = document.getElementById('tech-tab');
-        
-        // Get phone number for WhatsApp inquiry links
-        const rawPhone = (window.latestSettings && window.latestSettings.top_phone) || '967777777777';
-        const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
-        
-        if (medicalTab && techTab) {
-            medicalTab.innerHTML = '';
-            techTab.innerHTML = '';
-            
-            depts.forEach(d => {
-                const card = document.createElement('div');
-                card.className = `glass dept-card dept-card-${d.category} animate-on-scroll`;
-                
-                const waText = encodeURIComponent(`مرحباً كلية الصدارة، أود الاستفسار عن تخصص ${d.name}.`);
-                
-                let iconHtml = '';
-                const resolvedIcon = resolveMediaUrl(d.icon);
-                if (d.icon && (d.icon.startsWith('/') || d.icon.startsWith('http'))) {
-                    iconHtml = `<img src="${resolvedIcon}" style="width: 24px; height: 24px; object-fit: contain; vertical-align: middle;">`;
-                } else {
-                    iconHtml = `<i class="fa-solid ${d.icon || 'fa-graduation-cap'}"></i>`;
-                }
-
-                const resolvedImg = resolveMediaUrl(d.image_url);
-
-                card.innerHTML = `
-                    <div class="dept-card-img-wrapper">
-                        <span class="img-floating-badge"><i class="far fa-clock"></i> ${d.duration}</span>
-                        <img src="${resolvedImg}" alt="${d.name}" class="dept-card-img" onerror="this.src='https://placehold.co/400x250?text=${d.name}'">
-                        <div class="dept-card-icon-badge">${iconHtml}</div>
-                    </div>
-                    <div class="dept-card-body">
-                        <h3>${d.name}</h3>
-                        <p>${d.description}</p>
-                        <div class="dept-card-actions">
-                            <a href="departments.html#${d.code}" class="btn btn-outline btn-sm">تفاصيل البرنامج</a>
-                            <a href="https://wa.me/${cleanPhone}?text=${waText}" target="_blank" rel="noopener noreferrer" class="btn whatsapp-inquire-btn btn-sm"><i class="fab fa-whatsapp"></i> واتساب</a>
-                        </div>
-                    </div>
-                `;
-                
-                if (d.category === 'medical') {
-                    medicalTab.appendChild(card);
-                } else {
-                    techTab.appendChild(card);
-                }
-            });
-            
-            if (window.initScrollRevealForNewElements) {
-                window.initScrollRevealForNewElements();
-            }
-        }
-        
-        // Apply to departments.html (Detailed view page)
-        const medContainer = document.getElementById('medical-depts-container');
-        const techContainer = document.getElementById('tech-depts-container');
-        
-        if (medContainer && techContainer) {
-            medContainer.innerHTML = '';
-            techContainer.innerHTML = '';
-            
-            depts.forEach(d => {
-                const card = document.createElement('div');
-                card.className = `glass glass-padding dept-detail-card dept-detail-${d.category}`;
-                card.id = d.code;
-                
-                let detailIconHtml = '';
-                const resolvedIcon = resolveMediaUrl(d.icon);
-                if (d.icon && (d.icon.startsWith('/') || d.icon.startsWith('http'))) {
-                    detailIconHtml = `<img src="${resolvedIcon}" style="width: 32px; height: 32px; object-fit: contain; vertical-align: middle; margin-left: 10px;">`;
-                } else {
-                    detailIconHtml = `<i class="fa-solid ${d.icon || 'fa-graduation-cap'}" style="margin-left: 10px;"></i>`;
-                }
-
-                // Careers
-                const careersText = d.careers || '';
-                
-                // Courses table rows
-                let coursesHtml = '';
-                const courses = Array.isArray(d.courses) ? d.courses : [];
-                courses.forEach((c, idx) => {
-                    const rowspan = idx === 0 ? ` rowspan="${courses.length || 1}"` : '';
-                    const careersCol = idx === 0 ? `<td${rowspan}>${careersText}</td>` : '';
-                    
-                    coursesHtml += `
-                        <tr>
-                            <td>${c.code || ''}</td>
-                            <td>${c.name || ''}</td>
-                            <td>${c.type || ''}</td>
-                            ${careersCol}
-                        </tr>
-                    `;
-                });
-                
-                card.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
-                        <h3 style="color: var(--primary); font-size: 1.8rem;">${detailIconHtml} ${d.name}</h3>
-                        <span class="badge badge-gold">المدة: ${d.duration}</span>
-                    </div>
-                    <p style="color: var(--text-secondary); margin-bottom: 25px;">${d.description}</p>
-                    <div class="table-responsive">
-                        <table class="custom-table">
-                            <thead>
-                                <tr>
-                                    <th>رمز المساق</th>
-                                    <th>اسم المساق الدراسي</th>
-                                    <th>نوع التدريب</th>
-                                    <th>مجالات العمل المستقبلية</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${coursesHtml || '<tr><td colspan="4" style="text-align: center;">لا توجد خطة مساقات حالية</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                
-                if (d.category === 'medical') {
-                    medContainer.appendChild(card);
-                } else {
-                    techContainer.appendChild(card);
-                }
-            });
-            
-            // If there is a hash in the URL, scroll to it smoothly
-            if (window.location.hash) {
-                const targetEl = document.querySelector(window.location.hash);
-                if (targetEl) {
-                    setTimeout(() => {
-                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 500);
-                }
-            }
-        }
-
-        // Apply to admission.html (dropdown of departments)
-        const admissionSelect = document.getElementById('student-dept');
-        if (admissionSelect) {
-            const firstOption = admissionSelect.querySelector('option[value=""]');
-            admissionSelect.innerHTML = '';
-            if (firstOption) {
-                admissionSelect.appendChild(firstOption);
-            }
-            depts.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.name;
-                opt.textContent = d.name;
-                admissionSelect.appendChild(opt);
-            });
-        }
+        update();
+        if (deadline > Date.now()) countdownTimer = setInterval(update, 1000);
     }
 
-    function loadDepartments() {
-        // Load from cache first
-        const cachedDepts = localStorage.getItem('sadara_depts');
-        if (cachedDepts) {
-            try {
-                renderDepartments(JSON.parse(cachedDepts));
-            } catch (e) {
-                console.error('Error parsing cached departments:', e);
-            }
-        }
-
-        fetch(API_BASE + '/api/departments')
-            .then(res => res.json())
-            .then(depts => {
-                const cached = localStorage.getItem('sadara_depts');
-                if (cached && JSON.stringify(depts) === JSON.stringify(JSON.parse(cached))) {
-                    return; // Avoid unnecessary re-render to eliminate layout lag
-                }
-                localStorage.setItem('sadara_depts', JSON.stringify(depts));
-                renderDepartments(depts);
-            })
-            .catch(err => {
-                console.error('Failed to load departments from API:', err);
+    function applySettings(settings) {
+        window.latestSettings = settings;
+        const fields = {
+            top_phone: ['top-phone', 'footer-phone', 'contact-info-phone', 'contact-info-whatsapp'], top_email: ['top-email', 'footer-email', 'contact-info-email'], top_address: ['top-address', 'footer-address', 'contact-info-address'],
+            hero_desc: ['hero-desc'], about_us_p1: ['about-us-p1'], about_us_p2: ['about-us-p2'], about_vision: ['about-vision'],
+            about_mission: ['about-mission'], about_goals: ['about-goals'], dean_name: ['dean-name'], dean_title: ['dean-title'],
+            dean_message_quote: ['dean-message-quote'], dean_message_p2: ['dean-message-p2']
+        };
+        Object.entries(fields).forEach(([key, ids]) => {
+            if (settings[key] === undefined || settings[key] === null) return;
+            ids.forEach(id => { const element = document.getElementById(id); if (element) element.textContent = String(settings[key]); });
+        });
+        const phone = String(settings.top_phone || '').replace(/\D/g, '');
+        if (phone) {
+            ['footer-whatsapp', 'contact-info-whatsapp'].forEach(id => {
+                const whatsapp = document.getElementById(id);
+                if (whatsapp) whatsapp.href = 'https://wa.me/' + phone;
             });
+            ['top-phone', 'footer-phone', 'contact-info-phone'].forEach(id => {
+                const link = document.getElementById(id)?.closest('a');
+                if (link) link.href = 'tel:+' + phone;
+            });
+        }
+        if (settings.top_email) {
+            ['top-email', 'footer-email', 'contact-info-email'].forEach(id => {
+                const link = document.getElementById(id)?.closest('a');
+                if (link) link.href = 'mailto:' + settings.top_email;
+            });
+        }
+        Object.entries({ social_facebook: 'top-fb', social_twitter: 'top-tw', social_linkedin: 'top-li', social_youtube: 'top-yt' }).forEach(([key, id]) => {
+            const element = document.getElementById(id);
+            if (element && settings[key]) element.href = safeUrl(settings[key], '#');
+        });
+        const tag = document.getElementById('hero-tag');
+        if (tag && settings.hero_tag) tag.textContent = settings.hero_tag;
+        const title = document.getElementById('hero-title');
+        if (title && settings.hero_title) {
+            const subtitle = document.createElement('span');
+            subtitle.id = 'hero-subtitle';
+            subtitle.textContent = settings.hero_subtitle || 'صدارة التعليم لمستقبل واعد';
+            title.replaceChildren(document.createTextNode(String(settings.hero_title)), document.createElement('br'), subtitle);
+        } else if (settings.hero_subtitle && document.getElementById('hero-subtitle')) {
+            document.getElementById('hero-subtitle').textContent = settings.hero_subtitle;
+        }
+        Object.entries({ about_image: 'about-image', dean_avatar: 'dean-avatar' }).forEach(([key, id]) => {
+            const element = document.getElementById(id);
+            if (element && settings[key]) element.src = mediaUrl(settings[key]);
+        });
+        ['students', 'depts', 'employment', 'labs'].forEach(key => {
+            const element = document.getElementById('stat-' + key);
+            const value = settings['stat_' + key];
+            if (element && value !== undefined && value !== null && Number.isFinite(Number(value))) {
+                element.dataset.target = value;
+                element.textContent = value + (element.dataset.suffix || '');
+            }
+        });
+        setCountdown(settings.countdown_end);
+    }
+
+    function iconHtml(value, size = 24) {
+        if (typeof value === 'string' && /^(https?:|\/|assets\/)/.test(value)) {
+            return `<img src="${escapeHtml(mediaUrl(value))}" alt="" width="${size}" height="${size}" style="object-fit:contain">`;
+        }
+        const name = typeof value === 'string' && /^fa-[a-z0-9-]+$/.test(value) ? value : 'fa-graduation-cap';
+        return `<i class="fas ${name}" aria-hidden="true"></i>`;
+    }
+
+    function bindImageFallbacks(container) {
+        container.querySelectorAll('img').forEach(image => {
+            image.addEventListener('error', () => { image.src = new URL('assets/images/hero.png', location.href).href; }, { once: true });
+        });
+    }
+
+    function renderDepartments(departments) {
+        const medical = document.getElementById('medical-tab');
+        const tech = document.getElementById('tech-tab');
+        const detailedMedical = document.getElementById('medical-depts-container');
+        const detailedTech = document.getElementById('tech-depts-container');
+        const containers = [medical, tech, detailedMedical, detailedTech].filter(Boolean);
+        containers.forEach(container => container.replaceChildren());
+        const phone = String(window.latestSettings?.top_phone || '967777777777').replace(/\D/g, '');
+        departments.forEach(department => {
+            const category = department.category === 'medical' ? 'medical' : 'tech';
+            const name = escapeHtml(department.name);
+            if (medical && tech) {
+                const card = document.createElement('div');
+                card.className = `glass dept-card dept-card-${category} animate-on-scroll`;
+                const code = encodeURIComponent(String(department.code || ''));
+                const inquiry = encodeURIComponent(`مرحباً كلية الصدارة، أود الاستفسار عن تخصص ${department.name}.`);
+                card.innerHTML = `<div class="dept-card-img-wrapper"><span class="img-floating-badge"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(department.duration)}</span><img src="${escapeHtml(mediaUrl(department.image_url))}" alt="${name}" class="dept-card-img" loading="lazy" decoding="async"><div class="dept-card-icon-badge">${iconHtml(department.icon)}</div></div><div class="dept-card-body"><h3>${name}</h3><p>${escapeHtml(department.description)}</p><div class="dept-card-actions"><a href="departments.html#${code}" class="btn btn-outline btn-sm">تفاصيل البرنامج</a><a href="https://wa.me/${phone}?text=${inquiry}" target="_blank" rel="noopener noreferrer" class="btn whatsapp-inquire-btn btn-sm"><i class="fab fa-whatsapp" aria-hidden="true"></i> واتساب</a></div></div>`;
+                (category === 'medical' ? medical : tech).appendChild(card);
+            }
+            if (detailedMedical && detailedTech) {
+                const card = document.createElement('div');
+                card.className = `glass glass-padding dept-detail-card dept-detail-${category}`;
+                card.id = String(department.code || '');
+                const courses = Array.isArray(department.courses) ? department.courses : [];
+                const rows = courses.map((course, index) => `<tr><td>${escapeHtml(course.code)}</td><td>${escapeHtml(course.name)}</td><td>${escapeHtml(course.type)}</td>${index === 0 ? `<td rowspan="${courses.length}">${escapeHtml(department.careers)}</td>` : ''}</tr>`).join('');
+                card.innerHTML = `<div class="dept-detail-heading"><h3>${iconHtml(department.icon, 32)} ${name}</h3><span class="badge badge-gold">المدة: ${escapeHtml(department.duration)}</span></div><p class="dept-detail-description">${escapeHtml(department.description)}</p><div class="table-responsive"><table class="custom-table"><thead><tr><th scope="col">رمز المساق</th><th scope="col">اسم المساق الدراسي</th><th scope="col">نوع التدريب</th><th scope="col">مجالات العمل المستقبلية</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${escapeHtml(department.careers) || 'لم تُضف خطة المساقات بعد.'}</td></tr>`}</tbody></table></div>`;
+                (category === 'medical' ? detailedMedical : detailedTech).appendChild(card);
+            }
+        });
+        containers.forEach(container => {
+            if (!container.children.length) container.innerHTML = '<p class="data-feedback">لا توجد تخصصات مضافة في هذا القسم حالياً.</p>';
+            bindImageFallbacks(container);
+        });
+        const select = document.getElementById('student-dept');
+        if (select) {
+            const selected = select.value;
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.disabled = true;
+            placeholder.textContent = departments.length ? 'اختر التخصص...' : 'لا توجد تخصصات متاحة حالياً';
+            select.replaceChildren(placeholder);
+            departments.forEach(department => {
+                const option = document.createElement('option');
+                option.value = department.name;
+                option.textContent = department.name;
+                select.appendChild(option);
+            });
+            select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+            select.disabled = departments.length === 0;
+        }
+        revealContent();
+        if (location.hash) {
+            let id;
+            try { id = decodeURIComponent(location.hash.slice(1)); } catch { id = location.hash.slice(1); }
+            document.getElementById(id)?.scrollIntoView({ behavior: scrollBehavior, block: 'start' });
+        }
     }
 
     function renderLabs(labs) {
-        const labsGrid = document.querySelector('.labs-grid');
-        if (!labsGrid) return;
-
-        // Helper to resolve media URLs to backend
-        const resolveMediaUrl = (url) => {
-            if (!url) return '';
-            if (url.startsWith('http://') || url.startsWith('https://')) return url;
-            if (url.startsWith('/media/')) return API_BASE + url;
-            return url;
-        };
-
-        labsGrid.innerHTML = '';
-
-        if (labs.length === 0) {
-            labsGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 40px; font-size: 1.1rem; font-family: var(--font-primary);">لا توجد معامل مضافة حالياً.</div>';
-            return;
-        }
-
-        labs.forEach(l => {
+        const grid = document.querySelector('.labs-grid');
+        if (!grid) return;
+        grid.replaceChildren();
+        labs.forEach(lab => {
             const card = document.createElement('div');
             card.className = 'glass lab-card animate-on-scroll';
-
-            const categoryLabel = l.category === 'medical' ? 'معمل طبي' : 'معمل تقني';
-            const categoryIcon = l.category === 'medical' ? 'fa-prescription-bottle-alt' : 'fa-laptop-code';
-            const resolvedImg = resolveMediaUrl(l.image_url);
-
-            // Generate specs html
-            let specsHtml = '';
-            const specs = Array.isArray(l.specs) ? l.specs : [];
-            specs.forEach(s => {
-                let specIcon = 'fa-check-circle';
-                const lowerS = s.toLowerCase();
-                if (lowerS.includes('حاسوب') || lowerS.includes('برامج') || lowerS.includes('exocad') || lowerS.includes('cad') || lowerS.includes('سيرفر') || lowerS.includes('شبك')) specIcon = 'fa-desktop';
-                else if (lowerS.includes('ماسح') || lowerS.includes('ثلاثي') || lowerS.includes('مكعب') || lowerS.includes('ابعاد')) specIcon = 'fa-cube';
-                else if (lowerS.includes('مخرطة') || lowerS.includes('جهاز') || lowerS.includes('أداة') || lowerS.includes('أوتوكلاف')) specIcon = 'fa-cog';
-                else if (lowerS.includes('سرير') || lowerS.includes('دمى') || lowerS.includes('طاولة') || lowerS.includes('رعاية') || lowerS.includes('مريض')) specIcon = 'fa-procedures';
-                else if (lowerS.includes('تحليل') || lowerS.includes('مجهر') || lowerS.includes('مجاهر') || lowerS.includes('طيف') || lowerS.includes('دم')) specIcon = 'fa-microscope';
-                
-                specsHtml += `<span class="lab-spec-badge"><i class="fas ${specIcon}"></i> ${s}</span>`;
-            });
-
-            card.innerHTML = `
-                <div class="lab-card-img-wrapper">
-                    <span class="img-floating-badge"><i class="fas ${categoryIcon}"></i> ${categoryLabel}</span>
-                    <img src="${resolvedImg}" alt="${l.name}" class="lab-card-img" onerror="this.src='https://placehold.co/400x250?text=${l.name}'">
-                </div>
-                <div class="lab-card-body">
-                    <h3>${l.name}</h3>
-                    <p>${l.description}</p>
-                    <div class="lab-specs">
-                        ${specsHtml}
-                    </div>
-                </div>
-            `;
-
-            labsGrid.appendChild(card);
+            const medical = lab.category === 'medical';
+            const specs = (Array.isArray(lab.specs) ? lab.specs : []).map(spec => `<span class="lab-spec-badge"><i class="fas fa-check-circle" aria-hidden="true"></i> ${escapeHtml(spec)}</span>`).join('');
+            card.innerHTML = `<div class="lab-card-img-wrapper"><span class="img-floating-badge">${medical ? 'معمل طبي' : 'معمل تقني'}</span><img src="${escapeHtml(mediaUrl(lab.image_url))}" alt="${escapeHtml(lab.name)}" class="lab-card-img" loading="lazy" decoding="async"></div><div class="lab-card-body"><h3>${escapeHtml(lab.name)}</h3><p>${escapeHtml(lab.description)}</p><div class="lab-specs">${specs}</div></div>`;
+            grid.appendChild(card);
         });
-
-        if (window.initScrollRevealForNewElements) {
-            window.initScrollRevealForNewElements();
-        }
-    }
-
-    function loadLabs() {
-        const cached = localStorage.getItem('sadara_labs');
-        if (cached) {
-            try {
-                renderLabs(JSON.parse(cached));
-            } catch (e) {
-                console.error('Error parsing cached labs:', e);
-            }
-        }
-
-        fetch(API_BASE + '/api/labs')
-            .then(res => res.json())
-            .then(labs => {
-                const cachedStr = localStorage.getItem('sadara_labs');
-                if (cachedStr && JSON.stringify(labs) === JSON.stringify(JSON.parse(cachedStr))) {
-                    return; // Avoid layout reflow
-                }
-                localStorage.setItem('sadara_labs', JSON.stringify(labs));
-                renderLabs(labs);
-            })
-            .catch(err => {
-                console.error('Failed to load labs from API:', err);
-            });
+        if (!labs.length) grid.innerHTML = '<p class="data-feedback">لا توجد معامل مضافة حالياً.</p>';
+        bindImageFallbacks(grid);
+        revealContent();
     }
 
     function renderFees(fees) {
-        const tbody = document.getElementById('fees-table-body');
-        if (!tbody) return;
-        
-        tbody.innerHTML = '';
-        if (fees.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">لا توجد رسوم دراسية مضافة حالياً.</td>
-                </tr>
-            `;
-            return;
-        }
-        
-        fees.forEach(f => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="font-weight: bold; color: var(--primary);">${f.department_name}</td>
-                <td>${f.official_fee}</td>
-                <td style="font-weight: bold; color: #2ecc71;">${f.discounted_fee}</td>
-                <td>${f.installment}</td>
-                <td>${f.payment_options}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function loadFees() {
-        const tbody = document.getElementById('fees-table-body');
-        if (!tbody) return;
-        
-        const cached = localStorage.getItem('sadara_fees');
-        if (cached) {
-            try {
-                renderFees(JSON.parse(cached));
-            } catch (e) {
-                console.error('Error parsing cached fees:', e);
-            }
-        }
-        
-        fetch(API_BASE + '/api/fees')
-            .then(res => res.json())
-            .then(fees => {
-                const cachedStr = localStorage.getItem('sadara_fees');
-                if (cachedStr && JSON.stringify(fees) === JSON.stringify(JSON.parse(cachedStr))) {
-                    return;
-                }
-                localStorage.setItem('sadara_fees', JSON.stringify(fees));
-                renderFees(fees);
-            })
-            .catch(err => {
-                console.error('Failed to load fees from API:', err);
+        const body = document.getElementById('fees-table-body');
+        if (!body) return;
+        body.replaceChildren();
+        fees.forEach(fee => {
+            const row = document.createElement('tr');
+            ['department_name', 'official_fee', 'discounted_fee', 'installment', 'payment_options'].forEach(key => {
+                const cell = document.createElement('td');
+                cell.textContent = fee[key] ?? '';
+                row.appendChild(cell);
             });
-    }
-}
-
-// ==========================================
-// Instant Page Navigation: Hover Prefetch
-// Preloads pages when user hovers over links
-// ==========================================
-(function() {
-    const prefetched = new Set();
-    
-    function prefetchPage(url) {
-        if (prefetched.has(url)) return;
-        if (!url || url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('http')) return;
-        
-        prefetched.add(url);
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.href = url;
-        link.as = 'document';
-        document.head.appendChild(link);
-    }
-    
-    document.addEventListener('mouseover', function(e) {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-        
-        const href = link.getAttribute('href');
-        if (href && href.endsWith('.html')) {
-            prefetchPage(href);
-        }
-    }, { passive: true });
-    
-    // Also prefetch on touchstart for mobile
-    document.addEventListener('touchstart', function(e) {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-        
-        const href = link.getAttribute('href');
-        if (href && href.endsWith('.html')) {
-            prefetchPage(href);
-        }
-    }, { passive: true });
-})();
-
-// ==========================================
-// Global Scroll Listener
-// ==========================================
-window.addEventListener('scroll', () => {
-    const header = document.getElementById('header');
-    const floatToTop = document.getElementById('float-totop');
-    if (header) {
-        if (window.scrollY > 50) {
-            header.classList.add('scrolled');
-            if (floatToTop) floatToTop.classList.add('show');
-        } else {
-            header.classList.remove('scrolled');
-            if (floatToTop) floatToTop.classList.remove('show');
-        }
-    }
-});
-
-// ==========================================
-// SPA Router implementation
-// ==========================================
-let currentAbortController = null;
-
-function showProgressBar() {
-    let bar = document.getElementById('spa-progress-bar');
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.id = 'spa-progress-bar';
-        bar.style.position = 'fixed';
-        bar.style.top = '0';
-        bar.style.left = '0';
-        bar.style.height = '3px';
-        bar.style.background = 'linear-gradient(to right, var(--primary), var(--secondary))';
-        bar.style.zIndex = '99999';
-        bar.style.transition = 'width 0.3s ease, opacity 0.3s ease';
-        bar.style.width = '0%';
-        bar.style.boxShadow = '0 0 10px var(--primary)';
-        document.body.appendChild(bar);
-    }
-    bar.style.opacity = '1';
-    bar.style.width = '10%';
-    setTimeout(() => { if (bar.style.width === '10%') bar.style.width = '40%'; }, 100);
-    setTimeout(() => { if (bar.style.width === '40%') bar.style.width = '75%'; }, 300);
-}
-
-function hideProgressBar() {
-    const bar = document.getElementById('spa-progress-bar');
-    if (bar) {
-        bar.style.width = '100%';
-        setTimeout(() => {
-            bar.style.opacity = '0';
-            setTimeout(() => {
-                bar.style.width = '0%';
-            }, 300);
-        }, 150);
-    }
-}
-
-function loadPage(url) {
-    showProgressBar();
-    if (currentAbortController) {
-        currentAbortController.abort();
-    }
-    currentAbortController = new AbortController();
-    
-    document.body.classList.add('page-transitioning');
-    const cleanUrl = url.split('#')[0];
-    
-    fetch(cleanUrl, { signal: currentAbortController.signal })
-        .then(res => {
-            if (!res.ok) throw new Error('Page not found');
-            return res.text();
-        })
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // Swap body content
-            document.body.innerHTML = doc.body.innerHTML;
-            document.title = doc.title;
-            
-            // Re-run page scripts and dynamic logic
-            initPage();
-            
-            // Scroll handling
-            if (url.includes('#')) {
-                const hash = url.substring(url.indexOf('#'));
-                setTimeout(() => {
-                    const elem = document.querySelector(hash);
-                    if (elem) {
-                        elem.scrollIntoView({ behavior: 'smooth' });
-                    }
-                }, 100);
-            } else {
-                window.scrollTo({ top: 0, behavior: 'instant' });
-            }
-            
-            document.body.classList.remove('page-transitioning');
-            hideProgressBar();
-        })
-        .catch(err => {
-            if (err.name === 'AbortError') return;
-            console.error('SPA load page error:', err);
-            hideProgressBar();
-            document.body.classList.remove('page-transitioning');
-            // Fallback to traditional navigation
-            window.location.href = url;
+            body.appendChild(row);
         });
-}
+        if (!fees.length) body.innerHTML = '<tr><td colspan="5" class="data-feedback">لا توجد رسوم دراسية مضافة حالياً.</td></tr>';
+    }
 
-function navigateTo(url) {
-    const currentLoc = window.location.pathname + window.location.search + window.location.hash;
-    if (url === currentLoc) return;
-    
-    history.pushState(null, '', url);
-    loadPage(url);
-}
+    function showDataError(containers, retry, hasCachedData) {
+        containers.forEach(container => {
+            if (!container || container.querySelector('.data-error')) return;
+            const message = document.createElement(container.tagName === 'TBODY' ? 'tr' : 'div');
+            message.className = 'data-feedback data-error';
+            message.setAttribute('role', 'status');
+            let parent = message;
+            if (message.tagName === 'TR') {
+                parent = document.createElement('td'); parent.colSpan = 5; message.appendChild(parent);
+            }
+            const text = document.createElement('p');
+            text.textContent = hasCachedData ? 'نعرض آخر بيانات محفوظة؛ تعذر تحديثها الآن.' : 'تعذر تحميل البيانات حالياً. يرجى المحاولة مجدداً.';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-outline btn-sm data-retry';
+            button.textContent = 'إعادة المحاولة';
+            button.addEventListener('click', retry);
+            parent.append(text, button);
+            if (!hasCachedData) container.replaceChildren(message); else container.appendChild(message);
+        });
+    }
 
-function initSPARouter() {
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-        
-        const href = link.getAttribute('href');
-        if (!href) return;
-        
-        // Ignore external urls
-        if (href.startsWith('http://') || href.startsWith('https://')) return;
-        if (href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) return;
-        if (href.startsWith('#') || link.getAttribute('target') === '_blank') return;
-        
-        // Ignore links pointing out of static site or to admin dashboard
-        if (href.includes('../dashbord/') || href.includes('dashbord/')) return;
-        
-        if (href.endsWith('.html') || !href.includes('.')) {
-            e.preventDefault();
-            navigateTo(href);
+    async function loadResource({ path, cacheKey, render, containers = [], object = false }) {
+        const valid = data => object ? data && typeof data === 'object' && !Array.isArray(data) :
+            Array.isArray(data) && data.every(item => item && typeof item === 'object' && !Array.isArray(item));
+        let cache;
+        try { cache = JSON.parse(storage.get(cacheKey)); } catch { /* Ignore a corrupt cache. */ }
+        const hasCache = valid(cache);
+        if (hasCache) render(cache);
+        const retry = () => loadResource({ path, cacheKey, render, containers, object });
+        containers.forEach(container => {
+            container?.querySelectorAll('.data-error').forEach(error => error.remove());
+            container?.setAttribute('aria-busy', 'true');
+        });
+        try {
+            const data = await apiRequest(path);
+            if (!valid(data)) throw new Error('Invalid API response');
+            storage.set(cacheKey, JSON.stringify(data));
+            if (!hasCache || JSON.stringify(data) !== JSON.stringify(cache)) render(data);
+        } catch {
+            if (!object) showDataError(containers, retry, hasCache);
+        } finally {
+            containers.forEach(container => container?.setAttribute('aria-busy', 'false'));
         }
-    });
-    
-    window.addEventListener('popstate', () => {
-        loadPage(window.location.pathname + window.location.search + window.location.hash);
-    });
-}
+    }
 
-// ==========================================
-// Initialization on DOM ready
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    initPage();
-    initSPARouter();
-});
+    function initForm(id, path, getData, successMessage) {
+        const form = document.getElementById(id);
+        if (!form) return;
+        const button = form.querySelector('button[type="submit"]');
+        if (!button) return;
+        const feedback = document.createElement('div');
+        feedback.className = 'form-feedback';
+        feedback.hidden = true;
+        feedback.tabIndex = -1;
+        form.appendChild(feedback);
+        form.querySelectorAll('input, select, textarea').forEach(input => {
+            if (input.id) input.name ||= input.id;
+            if (input.type === 'tel') { input.inputMode = 'tel'; input.maxLength = 50; }
+            if (input.type === 'text') input.maxLength = input.id === 'contact-subject' ? 500 : 255;
+            if (input.type === 'email') input.maxLength = 254;
+        });
+        const name = form.querySelector('input[id$="name"]');
+        if (name) name.autocomplete = 'name';
+        const phone = form.querySelector('input[type="tel"]');
+        if (phone) phone.autocomplete = 'tel';
+        const email = form.querySelector('input[type="email"]');
+        if (email) email.autocomplete = 'email';
+        const department = form.querySelector('#student-dept');
+        department?.querySelectorAll('option').forEach(option => { if (option.value) option.value = option.textContent.trim(); });
+        let submitting = false;
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (submitting || !form.reportValidity()) return;
+            const data = getData();
+            if (Object.values(data).some(value => typeof value === 'string' && !value.trim())) {
+                feedback.dataset.state = 'error';
+                feedback.setAttribute('role', 'alert');
+                feedback.textContent = 'يرجى تعبئة جميع الحقول المطلوبة بشكل صحيح.';
+                feedback.hidden = false;
+                feedback.focus();
+                return;
+            }
+            submitting = true;
+            const original = button.innerHTML;
+            button.disabled = true;
+            button.textContent = 'جاري الإرسال…';
+            form.setAttribute('aria-busy', 'true');
+            feedback.hidden = true;
+            try {
+                await apiRequest(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                form.reset();
+                feedback.dataset.state = 'success';
+                feedback.setAttribute('role', 'status');
+                feedback.textContent = successMessage;
+            } catch (error) {
+                feedback.dataset.state = 'error';
+                feedback.setAttribute('role', 'alert');
+                feedback.textContent = error.message;
+            } finally {
+                submitting = false;
+                button.disabled = false;
+                button.innerHTML = original;
+                form.removeAttribute('aria-busy');
+                feedback.hidden = false;
+                feedback.focus();
+            }
+        });
+    }
 
+    function initCarousel() {
+        const track = document.querySelector('.carousel-track');
+        const dotsContainer = document.querySelector('.carousel-dots');
+        if (!track || !dotsContainer || !track.children.length) return;
+        const slides = [...track.children];
+        let index = 0;
+        const dots = slides.map((slide, position) => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = 'carousel-dot';
+            dot.setAttribute('aria-label', `عرض شهادة الطالب ${position + 1}`);
+            dot.addEventListener('click', () => update(position));
+            dotsContainer.appendChild(dot);
+            return dot;
+        });
+        const update = position => {
+            index = position;
+            track.style.transform = `translateX(${index * 100}%)`;
+            dots.forEach((dot, position) => {
+                dot.classList.toggle('active', position === index);
+                dot.setAttribute('aria-pressed', String(position === index));
+                slides[position].setAttribute('aria-hidden', String(position !== index));
+            });
+        };
+        document.querySelector('.carousel-btn-next')?.addEventListener('click', () => update((index + 1) % slides.length));
+        document.querySelector('.carousel-btn-prev')?.addEventListener('click', () => update((index - 1 + slides.length) % slides.length));
+        update(0);
+        // Manual controls keep the reading position stable for keyboard and screen-reader users.
+    }
+
+    function init() {
+        initNavigation();
+        initTabsAndFaq();
+        initCarousel();
+        revealContent();
+        setCountdown();
+        document.querySelectorAll('.stat-number[data-target]').forEach(element => {
+            element.textContent = element.dataset.target + (element.dataset.suffix || '');
+        });
+        const value = id => document.getElementById(id)?.value.trim() || '';
+        initForm('quick-admission-form', '/api/applicants', () => ({ name: value('student-name'), phone: value('student-phone'), gpa: Number(value('student-gpa')), stream: value('student-stream'), department: value('student-dept') }), 'تم إرسال طلب التسجيل بنجاح. سيتواصل معك فريق القبول لاستكمال الإجراءات.');
+        initForm('contact-form', '/api/contact', () => ({ name: value('contact-name'), email: value('contact-email'), phone: value('contact-phone'), subject: value('contact-subject'), message: value('contact-message') }), 'تم إرسال رسالتك بنجاح. شكراً لتواصلك معنا، سنرد عليك في أقرب وقت ممكن.');
+        loadResource({ path: '/api/settings', cacheKey: 'sadara_settings', render: applySettings, object: true });
+        const departmentContainers = ['medical-tab', 'tech-tab', 'medical-depts-container', 'tech-depts-container'].map(id => document.getElementById(id)).filter(Boolean);
+        if (departmentContainers.length || document.getElementById('student-dept')) {
+            loadResource({ path: '/api/departments', cacheKey: 'sadara_depts', render: renderDepartments, containers: departmentContainers });
+        }
+        const labsGrid = document.querySelector('.labs-grid');
+        if (labsGrid) loadResource({ path: '/api/labs', cacheKey: 'sadara_labs', render: renderLabs, containers: [labsGrid] });
+        const feesBody = document.getElementById('fees-table-body');
+        if (feesBody) loadResource({ path: '/api/fees', cacheKey: 'sadara_fees', render: renderFees, containers: [feesBody] });
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();
+})();
 
 // ==========================================
 // FontAwesome SVG Replacer & Mutation Observer
@@ -1256,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 "fa-cog": "fa-gear",
                 "fa-home": "fa-house"
             };
-            if (renameMap[iconName]) {
+            if (!svgIcons[iconName] && renameMap[iconName]) {
                 iconName = renameMap[iconName];
             }
             
@@ -1275,14 +693,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mutation.type === 'childList') {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.matches('i') || node.classList.contains('fa') || node.className.includes('fa-')) {
+                        if (node.matches('i')) {
                             updateIconSvg(node);
                         }
                         node.querySelectorAll('i').forEach(updateIconSvg);
                     }
                 });
             } else if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                if (mutation.target.matches('i') || mutation.target.classList.contains('fa') || mutation.target.className.includes('fa-')) {
+                if (mutation.target.matches('i')) {
                     updateIconSvg(mutation.target);
                 }
             }
