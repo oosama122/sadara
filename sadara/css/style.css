@@ -2748,3 +2748,32 @@ body.page-transitioning {
     pointer-events: none;
 }
 
+
+
+/* ==========================================================================
+   Base styles for inline SVG icons replacement (FontAwesome alternative)
+   ========================================================================== */
+i > svg.svg-icon {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    display: inline-block;
+    vertical-align: -0.125em;
+}
+i[class*="fa-"] {
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    line-height: 1;
+}
+.fa-spin {
+    animation: fa-spin 2s infinite linear;
+}
+.fa-spin-reverse {
+    animation: fa-spin 2s infinite linear reverse;
+}
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
