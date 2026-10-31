@@ -106,3 +106,9 @@ git push origin main
 لا ينشئ وجود ملفات النشر حساب Railway أو مشروعاً منشوراً تلقائياً؛ يجب إكمال تسجيل الحساب وربط الخدمة أولاً. ملف `render.yaml` يبقى خياراً احتياطياً منفصلاً ولا ينشئ ربطاً بحساب Render.
 
 المراجع: [إنشاء الحساب وتسجيل الدخول](https://docs.railway.com/cli/login)، [نشر Dockerfile](https://docs.railway.com/builds/dockerfiles)، [وحدات التخزين](https://docs.railway.com/volumes)، [فحص الخدمة](https://docs.railway.com/deployments/healthchecks).
+
+## النسخة المنشورة على Sites
+
+الموقع: https://sadara-college-oosama122.alsaifi-3224.chatgpt.site
+
+مصدر النسخة المستضافة المتوافقة مع Cloudflare Workers في `deployments/sites/`. تستخدم قاعدة D1 وتخزين R2 مستقلين. تُدار إتاحة الموقع من إعدادات Sites، وتتحقق واجهات الإدارة من هوية ChatGPT للمالك في كل طلب. إعداد `SADARA_ADMIN_EMAIL` محفوظ في متغيرات الاستضافة ولا يرد في المصدر. يبقى باك إند Django الأصلي متاحاً للنشر التقليدي عبر Docker.

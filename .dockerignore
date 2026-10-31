@@ -13,3 +13,6 @@ backend/sadara.db
 backend/sadara.db-*
 backend/media
 backend/staticfiles
+
+sites/sadara-live
+deployments/sites

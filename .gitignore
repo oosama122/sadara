@@ -25,3 +25,6 @@ backend/media/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Independent hosted checkout; auditable source copy is in deployments/sites/.
+/sites/sadara-live/
