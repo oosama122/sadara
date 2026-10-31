@@ -35,9 +35,13 @@ if not DEBUG and SECRET_KEY.startswith('django-insecure-'):
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get(
     'ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]'
 ).split(',') if host.strip()]
-# Render support
+# Public hostnames supplied by the hosting platform.
 if os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
     ALLOWED_HOSTS.append(os.environ['RENDER_EXTERNAL_HOSTNAME'].strip())
+if os.environ.get('RAILWAY_PUBLIC_DOMAIN'):
+    ALLOWED_HOSTS.append(os.environ['RAILWAY_PUBLIC_DOMAIN'].strip())
+if os.environ.get('RAILWAY_PROJECT_ID'):
+    ALLOWED_HOSTS.append('healthcheck.railway.app')
 
 
 # Application definition
