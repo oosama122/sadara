@@ -272,7 +272,14 @@ const API_BASE = (() => {
         }
         Object.entries({ about_image: 'about-image', dean_avatar: 'dean-avatar' }).forEach(([key, id]) => {
             const element = document.getElementById(id);
-            if (element && settings[key]) element.src = mediaUrl(settings[key]);
+            if (element && settings[key]) {
+                const fallback = new URL(id === 'dean-avatar' ? 'assets/images/file.png' : 'assets/images/hero.png', location.href).href;
+                element.onerror = () => {
+                    element.onerror = null;
+                    element.src = fallback;
+                };
+                element.src = mediaUrl(settings[key]);
+            }
         });
         ['students', 'depts', 'employment', 'labs'].forEach(key => {
             const element = document.getElementById('stat-' + key);

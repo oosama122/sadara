@@ -2,9 +2,12 @@ services:
   - type: web
     name: sadara-backend
     runtime: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: python manage.py migrate --noinput && python manage.py seed_site && gunicorn sadara_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 60
+    plan: free
+    # Keep sadara/ and dashbord/ available beside backend/ at runtime.
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt && python backend/manage.py collectstatic --noinput
+    startCommand: cd backend && python manage.py migrate --noinput && python manage.py seed_site && exec gunicorn sadara_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 60
+    healthCheckPath: /api/health
     envVars:
       - key: SECRET_KEY
         generateValue: true
@@ -14,7 +17,3 @@ services:
         value: "False"
       - key: ALLOWED_HOSTS
         value: ".onrender.com"
-      - key: CORS_ALLOWED_ORIGINS
-        value: "https://sadara.onrender.com"
-      - key: PYTHON_VERSION
-        value: "3.12.0"

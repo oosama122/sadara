@@ -6,12 +6,12 @@
 
 ## التشغيل المحلي
 
-نفّذ الأوامر من **جذر المستودع**، أي المجلد الذي يحتوي على `requirements.txt`، باستخدام Python 3.12:
+نفّذ الأوامر من **جذر المستودع**، باستخدام Python 3.12. قائمة الاعتماديات في `backend/requirements.txt`:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r backend/requirements.txt
 export DEBUG=True
 python backend/manage.py migrate
 python backend/manage.py seed_site
@@ -80,24 +80,28 @@ DEBUG=True python backend/manage.py test core --noinput
 
 ## GitHub
 
-المستودع الحالي: [oosama122/sadara](https://github.com/oosama122/sadara)، والفرع `main`. اسم الاتصال المحلي الخاص به `new-origin`:
+المستودع الحالي: [oosama122/sadara](https://github.com/oosama122/sadara)، والفرع `main`. اسم الاتصال المحلي الخاص به `origin`:
 
 ```bash
-git push new-origin main
+git push origin main
 ```
 
-يشير الاتصال القديم `origin` إلى مستودع آخر. تحقّق من الوجهة عبر `git remote -v` قبل الدفع.
+تحقّق من الوجهة عبر `git remote -v` قبل الدفع. يجب أن تشير إلى `oosama122/sadara`.
 
-## تجهيز Railway
+## النشر على Render
 
-يتضمن الجذر `railway.json` لبناء التطبيق باستخدام Railpack، و`.python-version` لتحديد Python 3.12. يبدأ النشر من جذر المستودع وينفّذ الترحيلات وتهيئة المحتوى ثم Gunicorn. نقطة فحص الخدمة هي `/api/health`. الإعداد جاهز لنشر لاحق؛ وجوده أو دفع المستودع وحده لا ينشئ خدمة Railway.
+يتضمن الجذر `render.yaml` لبناء الواجهة والباك إند وتشغيلهما في خدمة واحدة، مع نقطة فحص الخدمة `/api/health`. اربط Blueprint بمستودع `oosama122/sadara` وفرع `main` من حساب الاستضافة الجديد.
 
-عند إنشاء خدمة مخصصة للمشروع وربطها بمستودع GitHub المذكور وفرع `main`:
+إعدادات الخدمة:
 
-1. اترك مجلد المصدر جذر المستودع لوجود الواجهتين و`requirements.txt` فيه.
-2. أرفق وحدة تخزين دائمة بالخدمة عند `/data`، ثم اضبط `SADARA_DB_PATH=/data/sadara.db` و`SADARA_MEDIA_ROOT=/data/media`.
-3. اضبط `DEBUG=False` ومفتاح `SECRET_KEY` عشوائياً خاصاً بالنشر. أضف النطاقات المخصصة إلى `ALLOWED_HOSTS` عند استخدامها؛ يضيف التطبيق `RAILWAY_PUBLIC_DOMAIN` تلقائياً عند توفره.
-4. لقاعدة جديدة، عيّن بيانات المدير `SADARA_ADMIN_USERNAME` و`SADARA_ADMIN_PASSWORD` قبل البداية الأولى. لا تغيّر هذه المتغيرات كلمات مرور الحسابات الموجودة.
-5. استخدم نسخة خدمة واحدة مع SQLite ووحدة التخزين، وتحقّق من نجاح فحص الخدمة بعد النشر.
+1. مجلد المصدر هو جذر المستودع (`.`)؛ تحديد `backend` وحده يمنع وصول الخادم إلى `sadara/` و`dashbord/`.
+2. أمر البناء: `pip install -r backend/requirements.txt && python backend/manage.py collectstatic --noinput`.
+3. أمر التشغيل كما هو محدد في `render.yaml`: الانتقال إلى `backend`، ثم الترحيلات وتهيئة المحتوى وتشغيل Gunicorn.
+4. ينشئ Blueprint مفاتيح مستقلة `SECRET_KEY` و`JWT_SECRET` ويعطّل `DEBUG`. يضيف التطبيق `RENDER_EXTERNAL_HOSTNAME` إلى المضيفين المسموحين تلقائياً.
+5. لقاعدة جديدة، عيّن بيانات المدير `SADARA_ADMIN_USERNAME` و`SADARA_ADMIN_PASSWORD` في إعدادات الخدمة قبل البداية الأولى. لا تضع كلمات المرور في GitHub؛ ولا تغيّر هذه المتغيرات كلمات مرور الحسابات الموجودة.
 
-تُنفَّذ الترحيلات عند بدء الخدمة لأن وحدات تخزين Railway تتوفر وقت التشغيل. قاعدة SQLite والصور المرفوعة خارج وحدة تخزين دائمة لا تستمران بين عمليات الاستبدال والنشر. عند نقل خدمة قائمة، انسخ قاعدة البيانات والصور الحالية إلى المسارات الجديدة قبل تحويل التطبيق إليها، واحتفظ بنسخة احتياطية.
+لحفظ طلبات القبول والرسائل والصور عبر عمليات النشر، يحتاج SQLite والصور إلى قرص دائم. عند إرفاق قرص بالخدمة عند `/var/data`، اضبط `SADARA_DB_PATH=/var/data/sadara.db` و`SADARA_MEDIA_ROOT=/var/data/media`، واستخدم نسخة خدمة واحدة. أقراص Render الدائمة تتطلب خدمة مدفوعة؛ ملف Blueprint الحالي لا يضيف قرصاً أو يطلب ترقية تلقائياً. التخزين المحلي المؤقت في الخدمة المجانية لا يحفظ هذه البيانات بعد الاستبدال أو إعادة التشغيل.
+
+عند نقل خدمة قائمة، انسخ قاعدة البيانات والصور الحالية إلى المسارات الجديدة قبل تحويل التطبيق إليها، واحتفظ بنسخة احتياطية. الخدمة المستقلة الجديدة تبدأ ببياناتها ومفاتيحها الخاصة.
+
+المراجع: [مجلد المصدر في Render](https://render.com/docs/monorepo-support)، [الأقراص الدائمة](https://render.com/docs/disks).
