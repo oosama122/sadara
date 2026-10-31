@@ -1,4 +1,5 @@
 import seed from './seed.json' with { type: 'json' };
+import { refreshDefaultImages } from './image-assets.mjs';
 
 class ApiError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -139,6 +140,7 @@ export async function handleApi(request, env) {
     if (path === '/api/upload') { method(request,['POST']); return await upload(request,env); }
     const db = database(env);
     await ensureSeed(db);
+    await refreshDefaultImages(db);
     if (path === '/api/settings') {
       method(request,['GET','POST']);
       if (request.method === 'GET') {

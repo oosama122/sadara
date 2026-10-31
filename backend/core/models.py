@@ -146,7 +146,7 @@ def seed_db():
                 'duration': '3 سنوات (دبلوم عالي)',
                 'description': 'تأهيل ممرضين وممرضات على مستوى عالٍ من الكفاءة لتقديم الرعاية الطبية والسريرية والتعامل مع الحالات الطبية الطارئة والحرجة في العناية المركزة والمشافي.',
                 'icon': 'fa-user-nurse',
-                'image_url': 'https://images.unsplash.com/photo-1584515901387-a7a1a7f35360?auto=format&fit=crop&q=80&w=400',
+                'image_url': '/assets/images/generated/nursing.webp',
                 'careers': 'أقسام العناية المركزة والطوارئ بالمستشفيات، مراكز غسيل الكلى، مراكز الأورام، القطاع التعليمي الطبي، والمراكز الطبية العامة.',
                 'courses': [
                     {'code': 'NS-101', 'name': 'أساسيات التمريض السريري والرعاية الصحية', 'type': 'معمل تمريض محاكاة'},
@@ -161,7 +161,7 @@ def seed_db():
                 'duration': '3 سنوات (دبلوم عالي)',
                 'description': 'دراسة الأدوية وتركيباتها الكيميائية، والتدريب على تحضير الأدوية ووصفها وإرشاد المرضى للطرق الصحيحة للاستخدام وإدارة الصيدليات ومخازن الأدوية.',
                 'icon': 'fa-capsules',
-                'image_url': 'https://images.unsplash.com/photo-1577158200653-64da653062d3?auto=format&fit=crop&q=80&w=400',
+                'image_url': '/assets/images/generated/pharmacy.webp',
                 'careers': 'الصيدليات الخاصة وصيدليات المستشفيات، شركات صناعة الأدوية ومعامل التحضير، مندوب تسويق طبي لدى شركات الأدوية، مستودعات الأدوية.',
                 'courses': [
                     {'code': 'PH-102', 'name': 'علم الأدوية الأساسي والسريري', 'type': 'نظري + عملي'},
@@ -191,7 +191,7 @@ def seed_db():
                 'duration': '3 سنوات (دبلوم عالي - إناث فقط)',
                 'description': 'إعداد قابلات محترفات لتقديم رعاية صحية ونفسية شاملة ومرافقة الأمهات الحوامل ومتابعة نمو الجنين وإجراء عمليات التوليد الطبيعية وتوفير رعاية الطفل بعد الولادة.',
                 'icon': 'fa-heart-pulse',
-                'image_url': 'https://images.unsplash.com/photo-1505151828120-04874d82b6b0?auto=format&fit=crop&q=80&w=400',
+                'image_url': '/assets/images/generated/midwifery.webp',
                 'careers': 'أقسام التوليد والنساء في المشافي والمراكز الصحية، عيادات الأمومة والطفولة، منظمات صحة وتأهيل المرأة، المراكز الطبية التخصصية.',
                 'courses': [
                     {'code': 'MW-101', 'name': 'الرعاية الصحية للأمهات وصحة الجنين', 'type': 'نظري وعملي معملي'},
@@ -269,14 +269,14 @@ def seed_db():
             {
                 'name': 'معمل تصميم الأسنان الرقمي CAD/CAM',
                 'category': 'medical',
-                'image_url': 'https://images.unsplash.com/photo-1579684389782-64d84b5e905d?auto=format&fit=crop&q=80&w=400',
+                'image_url': '/assets/images/generated/dental-lab.webp',
                 'description': 'يحتوي المعمل على أحدث أجهزة المسح الضوئي ثلاثي الأبعاد 3D Scanners، وأجهزة تفريز الأسنان Milling Machines الرقمية لإنتاج التيجان الخزفية والزركونية بشكل فوري وآلي بالكامل.',
                 'specs': ['ماسح ثلاثي الأبعاد', 'مخرطة تفريز خماسية', 'برامج Exocad']
             },
             {
                 'name': 'معمل الصيدلة وصناعة المستحضرات',
                 'category': 'medical',
-                'image_url': 'https://images.unsplash.com/photo-1577158200653-64da653062d3?auto=format&fit=crop&q=80&w=400',
+                'image_url': '/assets/images/generated/pharmacy.webp',
                 'description': 'مجهز بأدوات كيميائية متطورة، أجهزة التقطير والتجنيس، وأجهزة ضغط وتصنيع الحبوب السنوية والكريمات لتدريب الطلاب على تحضير الأدوية والمراهم الدوائية المعقمة يدوياً وصناعياً.',
                 'specs': ['أجهزة التحليل الطيفي', 'حمام مائي رقمي', 'معامل التركيب']
             },
@@ -297,7 +297,7 @@ def seed_db():
             {
                 'name': 'جناح الرعاية التمريضية والسريرية',
                 'category': 'medical',
-                'image_url': 'https://images.unsplash.com/photo-1584515901387-a7a1a7f35360?auto=format&fit=crop&q=80&w=400',
+                'image_url': '/assets/images/generated/nursing.webp',
                 'description': 'يضم المعمل دمى محاكاة طبية كاملة للتدريب على الإنعاش القلبي الرئوي (CPR) وتركيب المغذيات وسحب الدم والإسعافات الأولية لحالات الجروح والكسور والطورائ الطبية.',
                 'specs': ['دمى تدريب CPR ذكية', 'أدوات الحقن الوريدي', 'قياس الضغط والأكسجين']
             },

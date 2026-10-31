@@ -1,0 +1,23 @@
+{
+  "generator": "image_gen (built-in)",
+  "created": "2026-10-31",
+  "purpose": "Illustrative educational scenes for broken college program and laboratory image links.",
+  "assets": [
+    {
+      "filename": "pharmacy.webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape website card image for a medical college pharmacy program and pharmaceutical training lab. Primary request: a sophisticated photorealistic editorial image of a pharmacy training workbench in a bright modern academic laboratory. Main subject: amber glass medicine bottles without readable labels, a ceramic mortar and pestle, a capsule tray and neatly arranged glass measuring cylinders on a spotless pale stone bench; laboratory shelving softly blurred behind. Composition: landscape 3:2, eye level with close foreground detail and comfortable breathing room, main objects centered so a wide card crop stays useful. Lighting: soft natural daylight, subtle navy and teal accents matching a professional medical college website, realistic glass reflections. Constraints: a representative educational scene rather than a specific real campus; no people, no text, no logos, no watermark, no fake interface, no graphic overlay. Polished yet believable real-world photographic materials."
+    },
+    {
+      "filename": "nursing.webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape website card image for nursing education and a clinical skills training lab. Primary request: photorealistic editorial architectural photograph of a calm modern nursing simulation classroom, a neatly prepared hospital training bed with a realistic clean adult medical training mannequin partially under a white blanket, a stethoscope and clipboard on the adjacent tray, an electronic vital signs monitor and privacy curtain in background. No active medical procedure. Composition: landscape 3:2, three-quarter view, main bed and teaching equipment centered with usable detail after wide card crop. Lighting: airy soft daylight, tasteful navy blue and muted teal accents, white cotton texture and brushed metal. Constraints: illustrative training facility, no claim to depict a real campus; no real patients, no people, no visible text, no readable displays, no logos, no watermark, no graphic overlays. Professional, reassuring, realistic proportions."
+    },
+    {
+      "filename": "midwifery.webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape website card image for a midwifery and maternal care college program. Primary request: a gentle photorealistic editorial still-life photograph in a bright maternal and newborn skills training classroom: a lifelike infant training mannequin peacefully wrapped in a clean cream cotton blanket in a hospital newborn bassinet, a small folded knitted baby cap and a fetal doppler training instrument nearby, a softly out-of-focus clean examination bed in background. Composition: landscape 3:2, close three-quarter view, centered bassinet and balanced objects, crop safe for a wide program card. Lighting: soft window light, warm neutral whites with subtle muted teal medical accents. Constraints: clearly a representative educational still life, no real newborn, no people, no birth scene, no medical procedures, no text, no logos, no watermark, no graphic overlays. Natural fabric and plastic materials, welcoming and professional."
+    },
+    {
+      "filename": "dental-lab.webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: landscape website card image for a college digital dental CAD/CAM training laboratory. Primary request: photorealistic editorial photograph of an elegant dental technology lab workstation, a carefully modeled dental jaw study cast and a compact intraoral scanner on a pale lab bench in the foreground, a desktop monitor behind displaying an unlabelled blue three-dimensional molar model, a compact enclosed dental milling machine to one side. Composition: landscape 3:2, three-quarter view, focus on the study cast and scanner, balanced centered composition safe for wide card crops, softly blurred background. Lighting: bright soft daylight, subtle navy and teal palette with stainless steel and clean white ceramic details. Constraints: a representative educational lab, no people, no patients, no real dental procedure, no logos, no text anywhere, no watermark, no collage or graphic overlay. Realistic dental objects and plausible equipment proportions."
+    }
+  ]
+}

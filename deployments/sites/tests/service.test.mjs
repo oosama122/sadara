@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {handleApi,handleMedia} from '../app/server/service.mjs';
+import {imageReplacements,refreshDefaultImages} from '../app/server/image-assets.mjs';
 
 function fixture(t) {
  const sqlite = new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../drizzle/0000_many_bill_hollister.sql',import.meta.url),'utf8'));t.after(()=>sqlite.close());
@@ -16,6 +17,25 @@ function fixture(t) {
 }
 const applicant={name:'طالب اختبار',phone:'+967777123456',gpa:88.5,stream:'scientific',department:'صيدلة'};
 const contact={name:'طالب اختبار',email:'student@example.com',phone:'',subject:'طلب معلومات',message:'استفسار عن التخصصات.'};
+
+test('existing content replaces broken default images once and preserves owner changes',async t=>{
+ const {call,sqlite,env}=fixture(t);
+ await call('/api/departments');
+ sqlite.prepare('DELETE FROM settings WHERE key=?').run('__image_assets_v1');
+ const [oldUrl,newUrl]=imageReplacements[0];
+ sqlite.prepare('UPDATE departments SET image_url=? WHERE code=?').run(oldUrl,'pharmacy');
+ sqlite.prepare('UPDATE labs SET image_url=? WHERE id=?').run(oldUrl,1);
+ sqlite.prepare('UPDATE departments SET image_url=? WHERE code=?').run('/media/owner-photo.webp','nursing');
+ const response=await call('/api/departments');
+ const departments=await response.json();
+ assert.equal(departments.find(row=>row.code==='pharmacy').image_url,newUrl);
+ assert.equal(departments.find(row=>row.code==='nursing').image_url,'/media/owner-photo.webp');
+ assert.equal(sqlite.prepare('SELECT image_url FROM labs WHERE id=1').get().image_url,newUrl);
+ sqlite.prepare('UPDATE departments SET image_url=? WHERE code=?').run('/media/new-owner-photo.webp','pharmacy');
+ await refreshDefaultImages(env.DB);
+ assert.equal(sqlite.prepare('SELECT image_url FROM departments WHERE code=?').get('pharmacy').image_url,'/media/new-owner-photo.webp');
+ assert.ok(!('__image_assets_v1' in await (await call('/api/settings')).json()));
+});
 
 test('health verifies the database and returns no-store JSON',async t=>{const {call}=fixture(t);const response=await call('/api/health');assert.equal(response.status,200);assert.deepEqual(await response.json(),{status:'ok'});assert.equal(response.headers.get('cache-control'),'no-store');assert.equal((await handleApi(new Request('https://college.test/api/health'),{})).status,503);});
 test('public defaults seed once and exclude internal keys',async t=>{const {call}=fixture(t);const settings=await (await call('/api/settings')).json();assert.equal(settings.top_email,'info@alsadara.edu.ye');assert.ok(!('__content_seed_v1' in settings));for(let i=0;i<3;i++){assert.equal((await (await call('/api/departments')).json()).length,11);assert.equal((await (await call('/api/labs')).json()).length,6);}});
