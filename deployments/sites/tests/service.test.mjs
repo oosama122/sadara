@@ -2,15 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
+import {pbkdf2Sync} from 'node:crypto';
 import {handleApi,handleMedia} from '../app/server/service.mjs';
 import {imageReplacements,refreshDefaultImages} from '../app/server/image-assets.mjs';
 
+const loginCredentials={username:'test-admin',password:'test-only-password'};
+const testSalt='0123456789abcdef0123456789abcdef';
+const passwordHash='pbkdf2-sha256$100000$'+testSalt+'$'+pbkdf2Sync(loginCredentials.password,Buffer.from(testSalt,'hex'),100000,32,'sha256').toString('hex');
+
 function fixture(t) {
- const sqlite = new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../drizzle/0000_many_bill_hollister.sql',import.meta.url),'utf8'));t.after(()=>sqlite.close());
+ const sqlite = new DatabaseSync(':memory:');
+ const journal=JSON.parse(readFileSync(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8'));
+ for(const migration of journal.entries) sqlite.exec(readFileSync(new URL('../drizzle/'+migration.tag+'.sql',import.meta.url),'utf8'));
+ t.after(()=>sqlite.close());
  const prepare = (sql,args=[])=>({bind:(...a)=>prepare(sql,a),first:async()=>sqlite.prepare(sql).get(...args)||null,all:async()=>({results:sqlite.prepare(sql).all(...args)}),run:async()=>{const result=sqlite.prepare(sql).run(...args);return {meta:{last_row_id:Number(result.lastInsertRowid),changes:result.changes}};}});
  const db={prepare,batch:async statements=>{sqlite.exec('BEGIN');try{const result=[];for(const statement of statements)result.push(await statement.run());sqlite.exec('COMMIT');return result;}catch(error){sqlite.exec('ROLLBACK');throw error;}}};
  const files=new Map();const bucket={put:async(key,data,opts)=>{files.set(key,{data:new Uint8Array(data),type:opts.httpMetadata.contentType});},get:async key=>{const file=files.get(key);return file?{body:file.data,httpEtag:'"'+key+'"',writeHttpMetadata:headers=>headers.set('Content-Type',file.type)}:null;}};
- const env={DB:db,BUCKET:bucket,SADARA_ADMIN_EMAIL:'owner@example.test'};
+ const env={DB:db,BUCKET:bucket,SADARA_ADMIN_EMAIL:'owner@example.test',SADARA_ADMIN_USERNAME:loginCredentials.username,SADARA_ADMIN_PASSWORD_HASH:passwordHash};
  const owner={'oai-authenticated-user-email':'owner@example.test','oai-authenticated-user-id':'owner-id'};
  const call=async(path,{method='GET',body,admin=false,headers={}}={})=>handleApi(new Request('https://college.test'+path,{method,headers:{...(admin?owner:{}),...(body!==undefined?{'Content-Type':'application/json'}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})}),env);
  return {sqlite,env,owner,call,files};
@@ -54,3 +62,56 @@ test('images persist in object storage and support public ETags',async t=>{const
 test('executable uploads and anonymous uploads are denied',async t=>{const {env,owner}=fixture(t);const form=new FormData();form.set('file',new File(['<svg onload=alert(1)>'],'bad.svg',{type:'image/svg+xml'}));assert.equal((await handleApi(new Request('https://college.test/api/upload',{method:'POST',headers:owner,body:form}),env)).status,400);assert.equal((await handleApi(new Request('https://college.test/api/upload',{method:'POST',body:form}),env)).status,401);});
 test('cross-origin administrative writes are blocked',async t=>{const {call}=fixture(t);assert.equal((await call('/api/settings',{method:'POST',admin:true,headers:{Origin:'https://attacker.test'},body:{top_phone:'bad'}})).status,403);});
 test('unsupported methods, missing records and routes have explicit statuses',async t=>{const {call}=fixture(t);assert.equal((await call('/api/applicants',{method:'DELETE',admin:true})).status,405);assert.equal((await call('/api/contact/999',{method:'DELETE',admin:true})).status,404);assert.equal((await call('/api/unknown')).status,404);});
+
+async function signIn(call, headers={}) {
+ const response=await call('/api/auth/login',{method:'POST',body:loginCredentials,headers});
+ assert.equal(response.status,200);
+ return {response,cookie:response.headers.get('set-cookie').split(';')[0]};
+}
+test('password login establishes a private server session without returning its secret',async t=>{
+ const {call,sqlite}=fixture(t);const {response,cookie}=await signIn(call);
+ const data=await response.json();assert.equal(data.token,'cookie-session');assert.equal(data.user.username,loginCredentials.username);assert.equal(data.user.auth_method,'password');
+ assert.match(response.headers.get('set-cookie'),/HttpOnly; Secure; SameSite=Strict/);
+ assert.match(cookie,/^__Host-sadara_admin=[a-f0-9]{64}$/);
+ const stored=sqlite.prepare('SELECT * FROM admin_sessions').get();assert.notEqual(stored.token_hash,cookie.split('=')[1]);assert.equal(stored.token_hash.length,64);
+ const headers={Cookie:cookie};assert.equal((await call('/api/auth/me',{headers})).status,200);assert.equal((await call('/api/applicants',{headers})).status,200);assert.equal((await call('/api/contact',{headers})).status,200);
+ assert.equal((await call('/api/settings',{method:'POST',headers,body:{top_phone:'777123456'}})).status,200);
+ assert.equal((await call('/api/applicants')).status,401);
+});
+test('incorrect credentials never create an administrative session',async t=>{
+ const {call,sqlite}=fixture(t);
+ for(const body of [{...loginCredentials,password:'wrong'},{...loginCredentials,username:'wrong'}]) assert.equal((await call('/api/auth/login',{method:'POST',body})).status,401);
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS count FROM admin_sessions').get().count,0);
+ for(const value of ['',null,[],true]) assert.equal((await call('/api/auth/login',{method:'POST',body:{...loginCredentials,password:value}})).status,400);
+});
+test('logout revokes the session even if its previous cookie is replayed',async t=>{
+ const {call}=fixture(t);const {cookie}=await signIn(call);
+ const response=await call('/api/auth/logout',{method:'POST',headers:{Cookie:cookie}});
+ assert.equal(response.status,200);assert.match(response.headers.get('set-cookie'),/Max-Age=0/);
+ assert.equal((await call('/api/auth/me',{headers:{Cookie:cookie}})).status,401);
+ assert.equal((await call('/api/settings',{method:'POST',headers:{Cookie:cookie},body:{top_phone:'bad'}})).status,401);
+});
+test('expired sessions and changed credentials invalidate prior cookies',async t=>{
+ const {call,sqlite,env}=fixture(t);let {cookie}=await signIn(call);
+ sqlite.prepare('UPDATE admin_sessions SET expires_at=0').run();assert.equal((await call('/api/auth/me',{headers:{Cookie:cookie}})).status,401);
+ ({cookie}=await signIn(call));env.SADARA_ADMIN_PASSWORD_HASH=passwordHash.slice(0,-1)+(passwordHash.endsWith('0')?'1':'0');
+ assert.equal((await call('/api/auth/me',{headers:{Cookie:cookie}})).status,401);
+});
+test('repeated failures throttle each client and recover after the window',async t=>{
+ const {call,sqlite}=fixture(t);const headers={'cf-connecting-ip':'192.0.2.10'};
+ for(let i=0;i<5;i++) assert.equal((await call('/api/auth/login',{method:'POST',headers,body:{...loginCredentials,password:'wrong'}})).status,401);
+ const blocked=await call('/api/auth/login',{method:'POST',headers,body:loginCredentials});assert.equal(blocked.status,429);assert.ok(Number(blocked.headers.get('retry-after'))>0);
+ await signIn(call,{'cf-connecting-ip':'192.0.2.11'});
+ sqlite.prepare('UPDATE admin_login_limits SET window_end=0').run();await signIn(call,headers);
+});
+test('login rotates an existing session and fabricated cookies cannot authorize',async t=>{
+ const {call}=fixture(t);const first=await signIn(call);const second=await signIn(call,{Cookie:first.cookie});
+ assert.notEqual(first.cookie,second.cookie);assert.equal((await call('/api/auth/me',{headers:{Cookie:first.cookie}})).status,401);
+ assert.equal((await call('/api/auth/me',{headers:{Cookie:'__Host-sadara_admin='+'f'.repeat(64)}})).status,401);
+ assert.equal((await call('/api/auth/me',{headers:{Authorization:'Bearer '+second.cookie.split('=')[1]}})).status,401);
+});
+test('cross-origin login and logout cannot create or revoke a session',async t=>{
+ const {call}=fixture(t);assert.equal((await call('/api/auth/login',{method:'POST',headers:{Origin:'https://elsewhere.test'},body:loginCredentials})).status,403);
+ const {cookie}=await signIn(call);assert.equal((await call('/api/auth/logout',{method:'POST',headers:{Cookie:cookie,Origin:'https://elsewhere.test'}})).status,403);
+ assert.equal((await call('/api/auth/me',{headers:{Cookie:cookie}})).status,200);
+});

@@ -1,5 +1,6 @@
 import seed from './seed.json' with { type: 'json' };
 import { refreshDefaultImages } from './image-assets.mjs';
+import { AuthenticationError, passwordUser, passwordLogin, passwordLogout } from './password-auth.mjs';
 
 class ApiError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -26,7 +27,9 @@ async function body(request) {
 function method(request, allowed) {
   if (!allowed.includes(request.method)) throw new ApiError('طريقة الطلب غير مسموحة.', 405);
 }
-function admin(request, env) {
+async function admin(request, env) {
+  const session = await passwordUser(request, env);
+  if (session) return session;
   const configured = String(env.SADARA_ADMIN_EMAIL || '').trim().toLowerCase();
   const email = String(request.headers.get('oai-authenticated-user-email') || '').trim().toLowerCase();
   if (!configured || !email || email !== configured) throw new ApiError('سجّل الدخول بحساب مالك الموقع للوصول إلى الإدارة.', 401);
@@ -34,7 +37,7 @@ function admin(request, env) {
   if (request.headers.get('oai-authenticated-user-full-name-encoding') === 'percent-encoded-utf-8') {
     try { name = decodeURIComponent(name); } catch { name = ''; }
   }
-  return { username: email, full_name: name || 'مدير كلية الصدارة', role: 'superuser' };
+  return { username: email, full_name: name || 'مدير كلية الصدارة', role: 'superuser', auth_method: 'chatgpt' };
 }
 function rejectCrossOrigin(request) {
   const origin = request.headers.get('origin');
@@ -97,7 +100,7 @@ function contentValues(definition, data) {
 }
 const contactItem = row => ({ ...row, is_read: Boolean(row.is_read) });
 async function upload(request, env) {
-  admin(request, env);
+  await admin(request, env);
   if (!env.BUCKET) throw new ApiError('خدمة رفع الصور غير متاحة حالياً.', 503);
   const length = Number(request.headers.get('content-length') || 0);
   if (length > 6 * 1024 * 1024) throw new ApiError('حجم الصورة يجب ألا يتجاوز 5 ميجابايت.', 413);
@@ -135,8 +138,20 @@ export async function handleApi(request, env) {
     rejectCrossOrigin(request);
     const path = new URL(request.url).pathname.replace(/\/$/,'');
     if (path === '/api/health') { method(request,['GET']); await database(env).prepare('SELECT 1 AS healthy').first(); return reply({status:'ok'}); }
-    if (path === '/api/auth/me') { method(request,['GET']); return reply(admin(request,env)); }
-    if (path === '/api/auth/login') { method(request,['POST']); return reply({token:'sites-session',user:admin(request,env)}); }
+    if (path === '/api/auth/me') { method(request,['GET']); return reply(await admin(request,env)); }
+    if (path === '/api/auth/login') {
+      method(request,['POST']);
+      const data = await body(request);
+      if (!('username' in data) && !('password' in data) && request.headers.has('oai-authenticated-user-email')) {
+        return reply({token:'sites-session',user:await admin(request,env)});
+      }
+      const result = await passwordLogin(request,env,data);
+      return reply({token:'cookie-session',user:result.user},200,{'Set-Cookie':result.cookie});
+    }
+    if (path === '/api/auth/logout') {
+      method(request,['POST']);
+      return reply({message:'تم تسجيل الخروج.'},200,{'Set-Cookie':await passwordLogout(request,env)});
+    }
     if (path === '/api/upload') { method(request,['POST']); return await upload(request,env); }
     const db = database(env);
     await ensureSeed(db);
@@ -147,7 +162,7 @@ export async function handleApi(request, env) {
         const {results} = await db.prepare("SELECT key,value FROM settings WHERE key NOT LIKE '\\_\\_%' ESCAPE '\\'").all();
         return reply(Object.fromEntries(results.map(row => [row.key,row.value])));
       }
-      admin(request,env); const data = await body(request); const entries = Object.entries(data);
+      await admin(request,env); const data = await body(request); const entries = Object.entries(data);
       if (!entries.length || entries.length > 100) throw new ApiError('لا توجد بيانات صالحة للحفظ.');
       for (const [key,value] of entries) if (!/^[a-z][a-z0-9_]{0,254}$/.test(key) || !['string','number','boolean'].includes(typeof value) || String(value).length > 20000 || (typeof value === 'number' && !Number.isFinite(value))) throw new ApiError('اسم أو قيمة أحد الإعدادات غير صالح.');
       await db.batch(entries.map(([key,value]) => db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(key,String(value))));
@@ -158,7 +173,7 @@ export async function handleApi(request, env) {
       const [,resource,id] = match; const definition = definitions[resource];
       method(request,id ? ['PUT','DELETE'] : ['GET','POST']);
       if (request.method === 'GET') { const {results} = await db.prepare(`SELECT * FROM ${definition.table} ORDER BY id`).all(); return reply(results.map(parseContent)); }
-      admin(request,env);
+      await admin(request,env);
       if (id && !await db.prepare(`SELECT id FROM ${definition.table} WHERE id=?`).bind(Number(id)).first()) throw new ApiError('العنصر غير موجود.',404);
       if (request.method === 'DELETE') { await db.prepare(`DELETE FROM ${definition.table} WHERE id=?`).bind(Number(id)).run(); return reply({message:'تم الحذف بنجاح.'}); }
       const values = contentValues(definition,await body(request));
@@ -171,7 +186,7 @@ export async function handleApi(request, env) {
     }
     if (path === '/api/applicants') {
       method(request,['GET','POST']);
-      if (request.method === 'GET') { admin(request,env); const {results} = await db.prepare('SELECT * FROM applicants ORDER BY id DESC').all(); return reply(results); }
+      if (request.method === 'GET') { await admin(request,env); const {results} = await db.prepare('SELECT * FROM applicants ORDER BY id DESC').all(); return reply(results); }
       const data = await body(request);
       const name = text(data,'name',255),phone = text(data,'phone',50),stream = text(data,'stream',100),department = text(data,'department',100);
       if (phone.replace(/[^\p{Nd}]/gu,'').length < 7 || !/^[+\p{Nd}\s()-]+$/u.test(phone)) throw new ApiError('يرجى إدخال رقم هاتف صحيح.');
@@ -185,7 +200,7 @@ export async function handleApi(request, env) {
     }
     const applicant = /^\/api\/applicants\/(\d+)$/.exec(path);
     if (applicant) {
-      method(request,['PUT','DELETE']);admin(request,env); const id = Number(applicant[1]);
+      method(request,['PUT','DELETE']);await admin(request,env); const id = Number(applicant[1]);
       if (!await db.prepare('SELECT id FROM applicants WHERE id=?').bind(id).first()) throw new ApiError('الطلب غير موجود.',404);
       if (request.method === 'DELETE') {await db.prepare('DELETE FROM applicants WHERE id=?').bind(id).run();return reply({message:'تم حذف الطلب.'});}
       const data = await body(request);
@@ -195,7 +210,7 @@ export async function handleApi(request, env) {
     }
     if (path === '/api/contact') {
       method(request,['GET','POST']);
-      if (request.method === 'GET') {admin(request,env);const {results} = await db.prepare('SELECT * FROM contact_messages ORDER BY created_at DESC,id DESC').all();return reply(results.map(contactItem));}
+      if (request.method === 'GET') {await admin(request,env);const {results} = await db.prepare('SELECT * FROM contact_messages ORDER BY created_at DESC,id DESC').all();return reply(results.map(contactItem));}
       const data = await body(request);
       const values = [['name',255],['email',255],['phone',50],['subject',500],['message',10000]].map(([key,limit])=>text(data,key,limit,key!=='phone'));
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[1])) throw new ApiError('يرجى إدخال بريد إلكتروني صحيح.');
@@ -204,7 +219,7 @@ export async function handleApi(request, env) {
     }
     const contact = /^\/api\/contact\/(\d+)$/.exec(path);
     if (contact) {
-      method(request,['PUT','DELETE']);admin(request,env);const id = Number(contact[1]);
+      method(request,['PUT','DELETE']);await admin(request,env);const id = Number(contact[1]);
       if (!await db.prepare('SELECT id FROM contact_messages WHERE id=?').bind(id).first()) throw new ApiError('الرسالة غير موجودة.',404);
       if (request.method === 'DELETE') {await db.prepare('DELETE FROM contact_messages WHERE id=?').bind(id).run();return reply({message:'تم حذف الرسالة.'});}
       const data = await body(request);if (typeof data.is_read !== 'boolean') throw new ApiError('حالة القراءة يجب أن تكون true أو false.');
@@ -212,7 +227,7 @@ export async function handleApi(request, env) {
     }
     return reply({message:'المسار غير موجود.'},404);
   } catch (error) {
-    if (error instanceof ApiError) return reply({message:error.message},error.status);
+    if (error instanceof ApiError || error instanceof AuthenticationError) return reply({message:error.message},error.status,error.headers);
     if (/unique constraint/i.test(String(error))) return reply({message:'تعذر الحفظ لوجود بيانات مكررة.'},400);
     console.error('Site API request failed', error);
     return reply({message:'تعذر إتمام الطلب حالياً. يرجى المحاولة مجدداً.'},503);

@@ -1,5 +1,11 @@
 import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 export const settings = sqliteTable('settings', {key:text('key').primaryKey(),value:text('value')});
+export const adminSessions = sqliteTable('admin_sessions', {
+ token_hash:text('token_hash').primaryKey(),username:text('username').notNull(),credential_version:text('credential_version').notNull(),expires_at:integer('expires_at').notNull()
+});
+export const adminLoginLimits = sqliteTable('admin_login_limits', {
+ client_hash:text('client_hash').primaryKey(),failures:integer('failures').notNull().default(0),window_end:integer('window_end').notNull()
+});
 export const applicants = sqliteTable('applicants', {
  id:integer('id').primaryKey({autoIncrement:true}),name:text('name').notNull(),phone:text('phone').notNull(),gpa:real('gpa').notNull(),stream:text('stream').notNull(),department:text('department').notNull(),status:text('status').notNull().default('pending'),created_at:text('created_at').notNull()
 });

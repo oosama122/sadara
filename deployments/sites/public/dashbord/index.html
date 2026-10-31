@@ -30,7 +30,7 @@
     <div class="glow-orb glow-orb-1"></div>
     <div class="glow-orb glow-orb-2"></div>
 
-    <div class="dashboard-container">
+    <div class="dashboard-container" inert>
 
         <!-- ==========================================
            1. Sidebar Area
@@ -883,17 +883,18 @@
             <h2 style="color: #fff; margin-bottom: 10px; font-family: 'Outfit', sans-serif;">تسجيل الدخول للنظام</h2>
             <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 30px; font-size: 0.9rem;">لوحة التحكم الإدارية لكلية الصدارة</p>
             <a class="login-back" href="/">العودة إلى موقع الكلية ←</a>
-            <p style="margin-bottom:20px;color:var(--text-secondary)">لوحة الإدارة متاحة لمالك الموقع عبر حساب ChatGPT.</p><a href="/signin-with-chatgpt?return_to=/dashbord/index.html" target="_top" class="btn btn-primary" style="width:100%">تسجيل الدخول بحساب المالك</a><form id="login-form" style="display:none">
+            <form id="login-form">
                 <div class="form-group" style="text-align: right; margin-bottom: 20px;">
                     <label for="login-username">اسم المستخدم</label>
-                    <input type="text" id="login-username" class="form-control" autocomplete="username" required>
+                    <input type="text" id="login-username" name="username" class="form-control" autocomplete="username" maxlength="100" dir="ltr" required>
                 </div>
                 <div class="form-group" style="text-align: right; margin-bottom: 30px;">
                     <label for="login-password">كلمة المرور</label>
-                    <input type="password" id="login-password" class="form-control" autocomplete="current-password" required>
+                    <input type="password" id="login-password" name="password" class="form-control" autocomplete="current-password" maxlength="256" dir="ltr" required>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">دخول <i class="fas fa-sign-in-alt"><svg viewBox="0 0 512 512" class="svg-icon" fill="currentColor" aria-hidden="true"><path d="M217.9 105.9L340.7 228.7c7.2 7.2 11.3 17.1 11.3 27.3s-4.1 20.1-11.3 27.3L217.9 406.1c-6.4 6.4-15 9.9-24 9.9c-18.7 0-33.9-15.2-33.9-33.9l0-62.1L32 320c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l128 0 0-62.1c0-18.7 15.2-33.9 33.9-33.9c9 0 17.6 3.6 24 9.9zM352 416l64 0c17.7 0 32-14.3 32-32l0-256c0-17.7-14.3-32-32-32l-64 0c-17.7 0-32-14.3-32-32s14.3-32 32-32l64 0c53 0 96 43 96 96l0 256c0 53-43 96-96 96l-64 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z" /></svg></i></button>
             </form>
+            <a href="/signin-with-chatgpt?return_to=/dashbord/index.html" target="_top" class="login-back" style="margin-top:20px">الدخول بحساب مالك الموقع</a>
         </div>
     </div>
 
@@ -903,6 +904,6 @@
     <!-- ==========================================
        7. Interactive Admin Logic Script
        ========================================== -->
-    <script src="js/main.js?v=3.0.0" defer></script>
+    <script src="js/main.js?v=3.1.0" defer></script>
 </body>
 </html>

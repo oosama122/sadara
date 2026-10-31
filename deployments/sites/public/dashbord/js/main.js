@@ -18,7 +18,7 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 20000);
             try {
-                const response = await window.fetch(url, {...options, signal: controller.signal, cache: 'no-store'});
+                const response = await window.fetch(url, {...options, signal: controller.signal, cache: 'no-store', credentials: 'same-origin'});
                 if (!response.ok) {
                     const data = await response.clone().json().catch(() => ({}));
                     const error = new Error(data.message || 'تعذر تنفيذ الطلب. يرجى المحاولة مجدداً.');
@@ -938,25 +938,17 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
         }
 
         // Authentication & Session validation
+        let currentAuthMethod = 'password';
         function checkAuth() {
-            const token = 'sites-session';
             const loginOverlay = document.getElementById('login-overlay');
-            if (!token) {
-                loginOverlay.style.display = 'flex';
-                document.querySelector('.dashboard-container').inert = true;
-                return;
-            }
-
-            apiFetch(API_BASE + '/api/auth/me', {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            })
+            apiFetch(API_BASE + '/api/auth/me')
             .then(res => {
                 if (!res.ok) throw new Error('Unauthorized');
                 return res.json();
             })
             .then(user => {
+                currentAuthMethod = user.auth_method || 'password';
+                storage.setItem('sadara_token', currentAuthMethod === 'chatgpt' ? 'sites-session' : 'cookie-session');
                 loginOverlay.style.display = 'none';
                 document.querySelector('.dashboard-container').inert = false;
                 document.querySelector('.admin-profile h4').innerText = user.full_name;
@@ -1001,6 +993,7 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalText;
                 storage.setItem('sadara_token', data.token);
+                document.getElementById('login-password').value = '';
                 showToast('تم تسجيل الدخول بنجاح! مرحباً بك.', 'success');
                 checkAuth();
             })
@@ -1694,9 +1687,17 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
             overlay.addEventListener('click', event => { if (event.target === overlay) overlay.classList.remove('active'); });
         });
 
-        document.getElementById('btn-logout').addEventListener('click', () => {
-            storage.removeItem('sadara_token');
-            window.location.assign('/signout-with-chatgpt?return_to=/dashbord/index.html');
+        document.getElementById('btn-logout').addEventListener('click', async event => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+                await apiFetch(API_BASE + '/api/auth/logout', {method:'POST'});
+                storage.removeItem('sadara_token');
+                window.location.assign(currentAuthMethod === 'chatgpt' ? '/signout-with-chatgpt?return_to=/dashbord/index.html' : '/dashbord/index.html');
+            } catch (error) {
+                button.disabled = false;
+                showToast(error.message || 'تعذر تسجيل الخروج. حاول مجدداً.', 'danger');
+            }
         });
         // Initialize Authentication Check
         checkAuth();

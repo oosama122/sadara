@@ -111,4 +111,4 @@ git push origin main
 
 الموقع: https://sadara-college-oosama122.alsaifi-3224.chatgpt.site
 
-مصدر النسخة المستضافة المتوافقة مع Cloudflare Workers في `deployments/sites/`. تستخدم قاعدة D1 وتخزين R2 مستقلين. تُدار إتاحة الموقع من إعدادات Sites، وتتحقق واجهات الإدارة من هوية ChatGPT للمالك في كل طلب. إعداد `SADARA_ADMIN_EMAIL` محفوظ في متغيرات الاستضافة ولا يرد في المصدر. يبقى باك إند Django الأصلي متاحاً للنشر التقليدي عبر Docker.
+مصدر النسخة المستضافة المتوافقة مع Cloudflare Workers في `deployments/sites/`. تستخدم قاعدة D1 وتخزين R2 مستقلين. الموقع وصفحة دخول الإدارة عامّان، بينما تتحقق واجهات الإدارة من الجلسة في كل طلب. يمكن الدخول باسم المستخدم وكلمة المرور دون حساب ChatGPT؛ يظل الدخول بهوية المالك خياراً إضافياً. تُحفظ إعدادات `SADARA_ADMIN_USERNAME` و`SADARA_ADMIN_PASSWORD_HASH` و`SADARA_ADMIN_EMAIL` في متغيرات الاستضافة السرية ولا تُضمّن بيانات الدخول في المصدر. تفاصيل الجلسات والتهيئة في `deployments/sites/AUTHENTICATION.md`. يبقى باك إند Django الأصلي متاحاً للنشر التقليدي عبر Docker.
