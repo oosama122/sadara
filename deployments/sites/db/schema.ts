@@ -1,4 +1,13 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
+export const studentAccounts = sqliteTable('student_accounts', {
+ id:integer('id').primaryKey({autoIncrement:true}),university_id:text('university_id').notNull().unique(),full_name:text('full_name').notNull(),password_hash:text('password_hash').notNull(),grade:text('grade').notNull().default(''),credential_version:text('credential_version').notNull(),created_at:text('created_at').notNull(),updated_at:text('updated_at').notNull()
+});
+export const studentSessions = sqliteTable('student_sessions', {
+ token_hash:text('token_hash').primaryKey(),student_id:integer('student_id').notNull().references(()=>studentAccounts.id,{onDelete:'cascade'}),credential_version:text('credential_version').notNull(),expires_at:integer('expires_at').notNull()
+}, table=>[index('student_sessions_student_idx').on(table.student_id),index('student_sessions_expiry_idx').on(table.expires_at)]);
+export const studentLoginLimits = sqliteTable('student_login_limits', {
+ client_hash:text('client_hash').primaryKey(),failures:integer('failures').notNull().default(0),window_end:integer('window_end').notNull()
+},table=>[index('student_login_limits_expiry_idx').on(table.window_end)]);
 export const settings = sqliteTable('settings', {key:text('key').primaryKey(),value:text('value')});
 export const adminSessions = sqliteTable('admin_sessions', {
  token_hash:text('token_hash').primaryKey(),username:text('username').notNull(),credential_version:text('credential_version').notNull(),expires_at:integer('expires_at').notNull()

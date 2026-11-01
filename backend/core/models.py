@@ -403,3 +403,35 @@ class ContactMessage(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.subject}"
+
+
+class StudentAccount(models.Model):
+    university_id = models.CharField(max_length=50, unique=True)
+    full_name = models.CharField(max_length=255)
+    password_hash = models.CharField(max_length=255)
+    grade = models.CharField(max_length=100, blank=True, default='')
+    credential_version = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'student_accounts'
+
+
+class StudentSession(models.Model):
+    token_hash = models.CharField(max_length=64, primary_key=True)
+    student = models.ForeignKey(StudentAccount, on_delete=models.CASCADE)
+    credential_version = models.CharField(max_length=32)
+    expires_at = models.BigIntegerField(db_index=True)
+
+    class Meta:
+        db_table = 'student_sessions'
+
+
+class StudentLoginLimit(models.Model):
+    client_hash = models.CharField(max_length=64, primary_key=True)
+    failures = models.PositiveIntegerField(default=0)
+    window_end = models.BigIntegerField(db_index=True)
+
+    class Meta:
+        db_table = 'student_login_limits'

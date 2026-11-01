@@ -1,5 +1,6 @@
 from django.urls import path
 from core import views
+from core import student_views
 
 urlpatterns = [
     # Static files and page serving to mimic original Flask logic
@@ -16,6 +17,11 @@ urlpatterns = [
     path('api/health', views.health),
     path('api/auth/login', views.login),
     path('api/auth/me', views.get_me),
+    path('api/students', student_views.students),
+    path('api/students/<int:student_id>', student_views.student_detail),
+    path('api/student/login', student_views.login),
+    path('api/student/me', student_views.me),
+    path('api/student/logout', student_views.logout),
 
     # Settings API endpoints
     path('api/settings', views.handle_settings),

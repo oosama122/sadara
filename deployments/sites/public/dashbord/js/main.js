@@ -147,8 +147,9 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
         const aboutTabContent = document.getElementById('about-tab-content');
         const contactsTabContent = document.getElementById('contacts-tab-content');
         const applicantsTabContent = document.getElementById('applicants-tab-content');
+        const studentAccountsTabContent = document.getElementById('student-accounts-tab-content');
 
-        const allTabContents = [statsTabContent, settingsTabContent, deptsTabContent, labsTabContent, feesTabContent, aboutTabContent, contactsTabContent, applicantsTabContent];
+        const allTabContents = [statsTabContent, settingsTabContent, deptsTabContent, labsTabContent, feesTabContent, aboutTabContent, contactsTabContent, applicantsTabContent, studentAccountsTabContent];
 
         function hideAllTabs() {
             allTabContents.forEach(t => { if (t) t.style.display = 'none'; });
@@ -187,6 +188,9 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
                 } else if (tab === 'contacts-tab') {
                     contactsTabContent.style.display = 'block';
                     loadContactsDashboard();
+                } else if (tab === 'student-accounts-tab') {
+                    studentAccountsTabContent.style.display = 'block';
+                    window.dispatchEvent(new Event('sadara:students-open'));
                 } else if (tab === 'applicants-tab') {
                     applicantsTabContent.style.display = 'block';
                     loadApplicantsDashboard();

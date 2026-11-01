@@ -1,0 +1,35 @@
+.student-admin-summary { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px; }
+.student-admin-summary>div { background:var(--bg-card); border:1px solid var(--border-color); border-radius:14px; padding:22px; }
+.student-admin-summary strong { display:block; font-size:2rem; color:var(--primary); }
+.student-admin-summary span { color:var(--text-secondary); font-size:.82rem; }
+.student-admin-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:16px; padding:22px; margin-bottom:20px; border:1px solid var(--border-color); border-radius:14px; background:var(--bg-card); }
+.student-admin-toolbar label { display:block; min-width:0; flex:1; }
+.student-admin-toolbar label>span { display:block; font-size:.78rem; color:var(--text-secondary); margin-bottom:8px; }
+.student-admin-toolbar input,.student-admin-toolbar select { width:100%; min-height:44px; border:1px solid var(--border-color); border-radius:8px; padding:10px 14px; background:var(--bg-body); color:var(--text-primary); font:inherit; font-size:.85rem; }
+.student-admin-toolbar .btn { min-height:44px; font-size:.8rem; }
+.student-accounts-status { color:var(--text-secondary); margin-block:12px; font-size:.85rem; min-height:24px; }
+.student-accounts-status[data-state=error] { color:#ff697e; }
+.student-accounts-list { padding:24px; border:1px solid var(--border-color); border-radius:16px; background:var(--bg-card); }
+.student-accounts-list-heading { display:flex; gap:15px; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.student-accounts-list-heading h2 { font-size:1rem; color:var(--text-primary); }
+.student-accounts-list-heading>span { font-size:.78rem; color:var(--text-muted); }
+.student-row-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.student-row-actions button { border:1px solid var(--border-color); border-radius:7px; background:var(--bg-body); color:var(--primary); padding:8px 12px; cursor:pointer; font:inherit; font-size:.73rem; min-height:36px; }
+.student-row-actions .student-delete-button { color:#ed667a; }
+.student-admin-grade { display:inline-block; border-radius:7px; background:var(--accent-bg); color:var(--primary); padding:5px 10px; font-weight:700; max-width:220px; overflow-wrap:anywhere; }
+.student-admin-grade.unpublished { color:var(--text-muted); font-weight:400; }
+.student-admin-dialog { width:min(620px,calc(100% - 28px)); max-height:90dvh; margin:auto; padding:28px; border:1px solid var(--border-color); border-radius:18px; background:var(--bg-card); color:var(--text-primary); box-shadow:0 20px 80px #0005; }
+.student-admin-dialog::backdrop { background:#120d18cf; backdrop-filter:blur(5px); }
+.student-admin-dialog header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; }
+.student-admin-dialog h2 { font-size:1.25rem; }
+.student-admin-dialog header button { border:1px solid var(--border-color); background:var(--bg-body); color:var(--text-primary); border-radius:50%; width:36px; height:36px; font-size:1.5rem; cursor:pointer; }
+.student-admin-dialog label { display:block; font-size:.82rem; color:var(--text-secondary); margin-bottom:8px; }
+.student-admin-dialog .form-group { margin-bottom:20px; }
+.student-admin-dialog .form-control { background:var(--bg-body); color:var(--text-primary); border-color:var(--border-color); }
+.student-admin-dialog small { display:block; font-size:.74rem; color:var(--text-muted); margin-top:8px; line-height:1.8; }
+.student-admin-dialog footer { display:flex; flex-wrap:wrap; gap:12px; padding-top:15px; border-top:1px solid var(--border-color); }
+.student-admin-feedback { padding:12px 15px; border:1px solid #e9657d50; background:#ed667a10; border-radius:8px; color:#ef8194; margin-bottom:18px; font-size:.85rem; }
+.student-admin-description { color:var(--text-secondary); font-size:.85rem; line-height:1.9; margin-block:15px 22px; }
+.student-delete-name { color:var(--primary); font-weight:700; overflow-wrap:anywhere; }
+[hidden] { display:none!important; }
+@media(max-width:650px) { .student-admin-toolbar { align-items:stretch; flex-direction:column; padding:18px; } .student-admin-dialog { padding:22px; } .student-accounts-list { padding:18px; } .student-admin-summary>div { padding:18px; } .student-admin-dialog footer .btn { flex:1; } }

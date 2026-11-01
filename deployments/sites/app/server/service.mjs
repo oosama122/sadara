@@ -1,6 +1,7 @@
 import seed from './seed.json' with { type: 'json' };
 import { refreshDefaultImages } from './image-assets.mjs';
 import { AuthenticationError, passwordUser, passwordLogin, passwordLogout } from './password-auth.mjs';
+import {StudentError,studentLogin,studentMe,studentLogout,listStudents,saveStudent,deleteStudent} from './student-service.mjs';
 
 class ApiError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
@@ -154,6 +155,21 @@ export async function handleApi(request, env) {
     }
     if (path === '/api/upload') { method(request,['POST']); return await upload(request,env); }
     const db = database(env);
+    if(path==='/api/student/login'){
+      method(request,['POST']);const result=await studentLogin(request,env,await body(request));
+      return reply({student:result.student},200,{'Set-Cookie':result.cookie,'Vary':'Cookie'});
+    }
+    if(path==='/api/student/me'){method(request,['GET']);return reply(await studentMe(request,env),200,{'Vary':'Cookie'});}
+    if(path==='/api/student/logout'){method(request,['POST']);return reply({message:'تم تسجيل خروج الطالب.'},200,{'Set-Cookie':await studentLogout(request,env),'Vary':'Cookie'});}
+    const student=/^\/api\/students(?:\/(\d+))?$/.exec(path);
+    if(student){
+      await admin(request,env);const id=student[1]?Number(student[1]):null;
+      method(request,id?['PUT','DELETE']:['GET','POST']);
+      if(request.method==='GET')return reply(await listStudents(env));
+      if(request.method==='DELETE'){await deleteStudent(env,id);return reply({message:'تم حذف حساب الطالب.'});}
+      const item=await saveStudent(env,await body(request),id);
+      return reply({message:id?'تم تحديث بيانات الطالب.':'تم إنشاء حساب الطالب.',student:item},id?200:201);
+    }
     await ensureSeed(db);
     await refreshDefaultImages(db);
     if (path === '/api/settings') {
@@ -227,7 +243,7 @@ export async function handleApi(request, env) {
     }
     return reply({message:'المسار غير موجود.'},404);
   } catch (error) {
-    if (error instanceof ApiError || error instanceof AuthenticationError) return reply({message:error.message},error.status,error.headers);
+    if (error instanceof ApiError || error instanceof AuthenticationError || error instanceof StudentError) return reply({message:error.message},error.status,error.headers);
     if (/unique constraint/i.test(String(error))) return reply({message:'تعذر الحفظ لوجود بيانات مكررة.'},400);
     console.error('Site API request failed', error);
     return reply({message:'تعذر إتمام الطلب حالياً. يرجى المحاولة مجدداً.'},503);

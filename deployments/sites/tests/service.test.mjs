@@ -115,3 +115,108 @@ test('cross-origin login and logout cannot create or revoke a session',async t=>
  const {cookie}=await signIn(call);assert.equal((await call('/api/auth/logout',{method:'POST',headers:{Cookie:cookie,Origin:'https://elsewhere.test'}})).status,403);
  assert.equal((await call('/api/auth/me',{headers:{Cookie:cookie}})).status,200);
 });
+
+const studentRecord={university_id:'2026-CS-001',full_name:'طالب اختبار البوابة',password:'student-test-pass',grade:'95/100'};
+async function createStudent(call,overrides={}){
+ const response=await call('/api/students',{method:'POST',admin:true,body:{...studentRecord,...overrides}});
+ assert.equal(response.status,201);return (await response.json()).student;
+}
+async function studentSignIn(call,overrides={},headers={}){
+ const response=await call('/api/student/login',{method:'POST',body:{university_id:studentRecord.university_id,password:studentRecord.password,...overrides},headers});
+ assert.equal(response.status,200);return {response,cookie:response.headers.get('set-cookie').split(';')[0]};
+}
+test('student accounts start empty and only administrators can create or list them',async t=>{
+ const {call,sqlite}=fixture(t);
+ assert.equal((await call('/api/students')).status,401);assert.equal((await call('/api/students',{method:'POST',body:studentRecord})).status,401);
+ assert.deepEqual(await (await call('/api/students',{admin:true})).json(),[]);
+ const student=await createStudent(call);assert.equal(student.grade,'95/100');assert.equal(student.full_name,studentRecord.full_name);
+ assert.deepEqual(Object.keys(student).sort(),['created_at','full_name','grade','id','university_id','updated_at']);
+ const row=sqlite.prepare('SELECT * FROM student_accounts WHERE id=?').get(student.id);assert.match(row.password_hash,/^pbkdf2-sha256\$100000\$/);assert.ok(!row.password_hash.includes(studentRecord.password));
+ assert.ok(!(await (await call('/api/students',{admin:true})).text()).includes('password'));
+});
+test('a student sees only their own current profile and cannot access administrative operations',async t=>{
+ const {call}=fixture(t);const first=await createStudent(call);const other=await createStudent(call,{university_id:'2026-CS-002',full_name:'طالب آخر',grade:'67'});
+ const {response,cookie}=await studentSignIn(call);assert.match(response.headers.get('set-cookie'),/HttpOnly; Secure; SameSite=Strict/);
+ const headers={Cookie:cookie};const profile=await (await call('/api/student/me?university_id='+other.university_id,{headers})).json();
+ assert.equal(profile.id,first.id);assert.equal(profile.full_name,first.full_name);assert.equal(profile.grade,'95/100');assert.ok(!('password_hash' in profile));assert.ok(!('credential_version' in profile));
+ assert.equal((await call('/api/students',{headers})).status,401);assert.equal((await call('/api/students/'+other.id,{method:'PUT',headers,body:{...studentRecord,grade:'100'}})).status,401);
+ assert.equal((await call('/api/auth/me',{headers})).status,401);assert.equal((await call('/api/applicants',{headers})).status,401);
+ assert.equal((await call('/api/student/me')).status,401);assert.equal((await call('/api/student/'+other.id,{headers})).status,404);
+});
+test('grade and name changes appear in the existing student session while blank passwords preserve credentials',async t=>{
+ const {call,sqlite}=fixture(t);const student=await createStudent(call);const {cookie}=await studentSignIn(call);
+ const before=sqlite.prepare('SELECT password_hash,credential_version FROM student_accounts WHERE id=?').get(student.id);
+ const response=await call('/api/students/'+student.id,{method:'PUT',admin:true,body:{...studentRecord,password:'',full_name:'الاسم بعد التعديل',grade:'ممتاز'}});assert.equal(response.status,200);
+ const after=sqlite.prepare('SELECT password_hash,credential_version FROM student_accounts WHERE id=?').get(student.id);assert.deepEqual(after,before);
+ const profileResponse=await call('/api/student/me',{headers:{Cookie:cookie}});assert.equal(profileResponse.headers.get('cache-control'),'no-store');assert.equal(profileResponse.headers.get('vary'),'Cookie');
+ const profile=await profileResponse.json();assert.equal(profile.full_name,'الاسم بعد التعديل');assert.equal(profile.grade,'ممتاز');
+});
+test('password resets revoke existing student sessions and old passwords stop working',async t=>{
+ const {call}=fixture(t);const student=await createStudent(call);const {cookie}=await studentSignIn(call);
+ assert.equal((await call('/api/students/'+student.id,{method:'PUT',admin:true,body:{...studentRecord,password:'replacement-student-pass'}})).status,200);
+ assert.equal((await call('/api/student/me',{headers:{Cookie:cookie}})).status,401);
+ assert.equal((await call('/api/student/login',{method:'POST',body:{university_id:studentRecord.university_id,password:studentRecord.password}})).status,401);
+ await studentSignIn(call,{password:'replacement-student-pass'});
+});
+test('changing a university identifier revokes old sessions and supports the new identifier',async t=>{
+ const {call}=fixture(t);const student=await createStudent(call);const {cookie}=await studentSignIn(call);
+ assert.equal((await call('/api/students/'+student.id,{method:'PUT',admin:true,body:{...studentRecord,university_id:'2026-CS-099',password:''}})).status,200);
+ assert.equal((await call('/api/student/me',{headers:{Cookie:cookie}})).status,401);
+ assert.equal((await call('/api/student/login',{method:'POST',body:{university_id:studentRecord.university_id,password:studentRecord.password}})).status,401);
+ await studentSignIn(call,{university_id:'2026-CS-099'});
+});
+test('university identifiers normalize Arabic digits and case and cannot be duplicated',async t=>{
+ const {call}=fixture(t);await createStudent(call,{university_id:'٢٠٢٦-cs-٠٠١'});
+ await studentSignIn(call);
+ assert.equal((await call('/api/students',{method:'POST',admin:true,body:studentRecord})).status,409);
+ assert.equal((await (await call('/api/students',{admin:true})).json()).length,1);
+});
+test('student logout revokes its cookie without signing out the administrator',async t=>{
+ const {call}=fixture(t);await createStudent(call);const adminSession=await signIn(call);const studentSession=await studentSignIn(call);
+ const headers={Cookie:adminSession.cookie+'; '+studentSession.cookie};const response=await call('/api/student/logout',{method:'POST',headers});assert.equal(response.status,200);assert.match(response.headers.get('set-cookie'),/Max-Age=0/);
+ assert.equal((await call('/api/student/me',{headers})).status,401);assert.equal((await call('/api/auth/me',{headers})).status,200);
+});
+test('deleting a student removes their sessions and does not recreate the account',async t=>{
+ const {call,sqlite}=fixture(t);const student=await createStudent(call);const {cookie}=await studentSignIn(call);
+ assert.equal((await call('/api/students/'+student.id,{method:'DELETE',admin:true})).status,200);
+ assert.equal((await call('/api/student/me',{headers:{Cookie:cookie}})).status,401);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM student_sessions').get().n,0);
+ assert.deepEqual(await (await call('/api/students',{admin:true})).json(),[]);assert.equal((await call('/api/students/'+student.id,{method:'DELETE',admin:true})).status,404);
+});
+test('student credential validation rejects malformed or overlong fields without partial writes',async t=>{
+ const {call,sqlite}=fixture(t);
+ for(const [key,value] of [['university_id','bad id'],['university_id',[]],['full_name',''],['full_name',true],['password','12345'],['password',null],['grade',[]],['grade',true],['grade','x'.repeat(101)]]){
+  assert.equal((await call('/api/students',{method:'POST',admin:true,body:{...studentRecord,[key]:value}})).status,400,key);
+ }
+ assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM student_accounts').get().n,0);
+ for(const value of [[],null,true,'text'])assert.equal((await call('/api/students',{method:'POST',admin:true,body:value})).status,400);
+});
+test('unpublished and zero grades remain accurate without guessing results',async t=>{
+ const {call}=fixture(t);const student=await createStudent(call,{grade:''});const {cookie}=await studentSignIn(call);
+ assert.equal((await (await call('/api/student/me',{headers:{Cookie:cookie}})).json()).grade,'');
+ assert.equal((await call('/api/students/'+student.id,{method:'PUT',admin:true,body:{...studentRecord,password:'',grade:0}})).status,200);
+ assert.equal((await (await call('/api/student/me',{headers:{Cookie:cookie}})).json()).grade,'0');
+});
+test('expired, fabricated and bearer-only student credentials cannot authorize',async t=>{
+ const {call,sqlite}=fixture(t);await createStudent(call);const {cookie}=await studentSignIn(call);
+ assert.equal((await call('/api/student/me',{headers:{Cookie:'__Host-sadara_student='+'f'.repeat(64)}})).status,401);
+ assert.equal((await call('/api/student/me',{headers:{Authorization:'Bearer '+cookie.split('=')[1]}})).status,401);
+ sqlite.prepare('UPDATE student_sessions SET expires_at=0').run();assert.equal((await call('/api/student/me',{headers:{Cookie:cookie}})).status,401);
+});
+test('student login throttles per student and client, then recovers after the window',async t=>{
+ const {call,sqlite}=fixture(t);await createStudent(call);await createStudent(call,{university_id:'2026-CS-002'});
+ const headers={'cf-connecting-ip':'192.0.2.20'};
+ for(let i=0;i<5;i++)assert.equal((await call('/api/student/login',{method:'POST',headers,body:{university_id:studentRecord.university_id,password:'wrong'}})).status,401);
+ const response=await call('/api/student/login',{method:'POST',headers,body:{university_id:studentRecord.university_id,password:studentRecord.password}});assert.equal(response.status,429);assert.ok(Number(response.headers.get('retry-after'))>0);
+ await studentSignIn(call,{university_id:'2026-CS-002'},headers);
+ sqlite.prepare('UPDATE student_login_limits SET window_end=0').run();await studentSignIn(call,{},headers);
+});
+test('student login does not reveal whether a valid university identifier exists',async t=>{
+ const {call}=fixture(t);await createStudent(call);
+ const wrong=await call('/api/student/login',{method:'POST',body:{university_id:studentRecord.university_id,password:'wrong'}});
+ const missing=await call('/api/student/login',{method:'POST',body:{university_id:'99999999',password:'wrong'}});
+ assert.equal(wrong.status,401);assert.equal(missing.status,401);assert.deepEqual(await wrong.json(),await missing.json());
+});
+test('cross-origin student and administrative mutations are blocked',async t=>{
+ const {call}=fixture(t);await createStudent(call);
+ for(const path of ['/api/student/login','/api/student/logout','/api/students'])assert.equal((await call(path,{method:'POST',admin:true,headers:{Origin:'https://attacker.test'},body:studentRecord})).status,403);
+});

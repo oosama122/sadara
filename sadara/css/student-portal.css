@@ -1,0 +1,73 @@
+.student-entry { margin-block:10px 40px; }
+.student-entry-inner { display:flex; justify-content:space-between; align-items:center; gap:30px; background:var(--dark); color:#fff; border-radius:18px; padding:30px 36px; position:relative; overflow:hidden; }
+.student-entry-inner::before { content:''; position:absolute; width:170px; height:170px; border:1px solid #b68b3550; border-radius:50%; inset-inline-end:10%; top:-100px; pointer-events:none; }
+.student-entry-inner .eyebrow { color:#e1bd75; }
+.student-entry-inner h2 { font-size:1.45rem; }
+.student-entry-inner p { color:#e0d6e2; font-size:.9rem; margin-top:8px; }
+.student-entry-inner .btn { flex-shrink:0; background:#eed5a1; color:#302335; border-color:#eed5a1; }
+.student-portal-layout { display:grid; grid-template-columns:1fr 1fr; align-items:start; gap:70px; max-width:1000px; margin-inline:auto; }
+.student-portal-intro h2 { font-size:1.7rem; margin-bottom:15px; }
+.student-portal-intro>p { color:var(--text-secondary); margin-bottom:26px; }
+.student-login-steps { list-style:none; display:flex; flex-direction:column; gap:20px; }
+.student-login-steps li { display:flex; gap:16px; align-items:flex-start; }
+.student-login-steps li>span { color:var(--secondary); font:600 1.3rem var(--font-primary); min-width:32px; }
+.student-login-steps strong { display:block; font-size:.9rem; color:var(--text-primary); }
+.student-login-steps p { color:var(--text-secondary); font-size:.86rem; margin-top:3px; }
+.student-login-card { border:1px solid var(--border-color); border-radius:20px; padding:30px; background:var(--bg-card); box-shadow:var(--shadow-md); }
+.student-login-card h2 { font-size:1.25rem; margin-bottom:8px; }
+.student-login-card>p { color:var(--text-secondary); font-size:.85rem; margin-bottom:24px; }
+.student-login-card .form-control { background:var(--bg-body); color:var(--text-primary); border-color:var(--border-color); }
+.student-login-card .form-label { color:var(--text-primary); font-size:.83rem; }
+.student-password-control { position:relative; }
+.student-password-control input { padding-right:80px; }
+.student-password-control button { position:absolute; right:10px; top:50%; transform:translateY(-50%); border:0; background:var(--accent-bg); color:var(--primary); border-radius:6px; padding:6px 10px; font-size:.75rem; }
+.student-login-card [type=submit] { width:100%; margin-top:8px; }
+.student-login-help { margin-top:20px; padding-top:18px; border-top:1px solid var(--border-color); text-align:center; font-size:.78rem; color:var(--text-secondary); }
+.student-login-help a { color:var(--primary); }
+.student-login-feedback { color:#a4273c; background:#fff1f3; border:1px solid #edbdc5; border-radius:8px; font-size:.85rem; padding:12px 15px; margin-top:18px; }
+[data-theme=dark] .student-login-feedback { background:#42222c; color:#ffbccb; border-color:#73404d; }
+.student-results { max-width:940px; margin-inline:auto; }
+.student-results-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:26px; }
+.student-results-heading h1 { font-size:1.7rem; }
+.student-results-heading p { color:var(--text-secondary); font-size:.9rem; margin-top:6px; }
+.student-results-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.student-results-actions .btn { font-size:.8rem; min-height:42px; }
+.student-result-card { display:grid; grid-template-columns:1.3fr 1fr; border:1px solid var(--border-color); border-radius:22px; background:var(--bg-card); overflow:hidden; box-shadow:var(--shadow-md); }
+.student-identity { padding:35px; }
+.student-identity dl>div+div { border-top:1px solid var(--border-color); padding-top:24px; margin-top:24px; }
+.student-identity dt { color:var(--text-muted); font-size:.8rem; margin-bottom:7px; }
+.student-identity dd { color:var(--text-primary); font:700 1.25rem var(--font-primary); overflow-wrap:anywhere; }
+.student-identity dd[dir=ltr] { text-align:right; }
+.student-grade-block { background:var(--accent-bg); border-inline-start:1px solid var(--border-color); padding:35px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+.student-grade-block>span { color:var(--text-secondary); font-size:.86rem; }
+.student-grade-value { color:var(--primary); font:800 clamp(2.5rem,6vw,4rem) var(--font-primary); line-height:1.5; margin-block:20px; max-width:100%; overflow-wrap:anywhere; }
+.student-grade-value.unpublished { font-size:1.6rem; }
+.student-grade-block>p { color:var(--text-secondary); font-size:.8rem; }
+.student-update-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; padding:17px 20px; border:1px solid var(--border-color); border-radius:12px; color:var(--text-secondary); background:var(--bg-card); font-size:.78rem; }
+.student-auto-refresh { color:var(--primary); }
+.student-update-bar time { display:block; margin-top:4px; color:var(--text-primary); }
+.student-privacy-note { margin-top:22px; font-size:.82rem; color:var(--text-secondary); }
+@media(max-width:800px) { .student-portal-layout { gap:35px; } .student-entry-inner { padding:26px; } }
+@media(max-width:650px) {
+ .student-portal-layout { grid-template-columns:1fr; gap:28px; }
+ .student-portal-intro h2 { font-size:1.4rem; }
+ .student-login-steps { gap:14px; }
+ .student-login-card { padding:24px; }
+ .student-entry-inner { flex-direction:column; align-items:flex-start; gap:22px; }
+ .student-entry-inner .btn { width:100%; }
+ .student-entry-inner h2 { font-size:1.2rem; }
+ .student-results-heading { flex-direction:column; align-items:flex-start; }
+ .student-result-card { grid-template-columns:1fr; }
+ .student-grade-block { border-inline-start:0; border-top:1px solid var(--border-color); padding:30px 25px; }
+ .student-identity { padding:26px; }
+ .student-results-heading h1 { font-size:1.5rem; }
+}
+@media print { .main-header,.top-bar,.footer,.mobile-shortcuts,.floating-actions,.student-results-actions,.student-auto-refresh { display:none!important; } .student-result-card,.student-update-bar { box-shadow:none; break-inside:avoid; } }
+
+.student-authenticated .page-banner { display:none; }
+@media(max-width:650px) { .student-grade-block { grid-row:1; border-top:0; border-bottom:1px solid var(--border-color); } }
+.student-results-actions .btn { background:var(--bg-card); color:var(--primary); border-color:var(--border-color); }
+@media(max-width:650px) {
+ .student-login-card { grid-row:1; }
+ .page-student:not(.student-authenticated) .page-banner { padding-block:30px; }
+}
