@@ -320,6 +320,7 @@ const API_BASE = (() => {
             if (medical && tech) {
                 const card = document.createElement('div');
                 card.className = `glass dept-card dept-card-${category} animate-on-scroll`;
+                card.dataset.programCode = department.code;
                 const code = encodeURIComponent(String(department.code || ''));
                 const inquiry = encodeURIComponent(`مرحباً كلية الصدارة، أود الاستفسار عن تخصص ${department.name}.`);
                 card.innerHTML = `<div class="dept-card-img-wrapper"><span class="img-floating-badge"><i class="far fa-clock" aria-hidden="true"></i> ${escapeHtml(department.duration)}</span><img src="${escapeHtml(mediaUrl(department.image_url))}" alt="${name}" class="dept-card-img" loading="lazy" decoding="async"><div class="dept-card-icon-badge">${iconHtml(department.icon)}</div></div><div class="dept-card-body"><h3>${name}</h3><p>${escapeHtml(department.description)}</p><div class="dept-card-actions"><a href="departments.html#${code}" class="btn btn-outline btn-sm">تفاصيل البرنامج</a><a href="https://wa.me/${phone}?text=${inquiry}" target="_blank" rel="noopener noreferrer" class="btn whatsapp-inquire-btn btn-sm"><i class="fab fa-whatsapp" aria-hidden="true"></i> واتساب</a></div></div>`;
@@ -329,6 +330,7 @@ const API_BASE = (() => {
                 const card = document.createElement('div');
                 card.className = `glass glass-padding dept-detail-card dept-detail-${category}`;
                 card.id = String(department.code || '');
+                card.dataset.programCode = department.code;
                 const courses = Array.isArray(department.courses) ? department.courses : [];
                 const rows = courses.map((course, index) => `<tr><td>${escapeHtml(course.code)}</td><td>${escapeHtml(course.name)}</td><td>${escapeHtml(course.type)}</td>${index === 0 ? `<td rowspan="${courses.length}">${escapeHtml(department.careers)}</td>` : ''}</tr>`).join('');
                 card.innerHTML = `<div class="dept-detail-heading"><h3>${iconHtml(department.icon, 32)} ${name}</h3><span class="badge badge-gold">المدة: ${escapeHtml(department.duration)}</span></div><p class="dept-detail-description">${escapeHtml(department.description)}</p><div class="table-responsive"><table class="custom-table"><thead><tr><th scope="col">رمز المساق</th><th scope="col">اسم المساق الدراسي</th><th scope="col">نوع التدريب</th><th scope="col">مجالات العمل المستقبلية</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${escapeHtml(department.careers) || 'لم تُضف خطة المساقات بعد.'}</td></tr>`}</tbody></table></div>`;
@@ -353,9 +355,14 @@ const API_BASE = (() => {
                 option.textContent = department.name;
                 select.appendChild(option);
             });
-            select.value = [...select.options].some(option => option.value === selected) ? selected : '';
+            const requested = new URLSearchParams(location.search).get('department');
+            const requestedName = departments.find(item => item.code === requested || item.name === requested)?.name;
+            select.value = requestedName || ([...select.options].some(option => option.value === selected) ? selected : '');
+            select.dispatchEvent(new Event('change', {bubbles:true}));
             select.disabled = departments.length === 0;
         }
+        window.sadaraDepartments = departments;
+        window.dispatchEvent(new CustomEvent('sadara:departments', {detail:departments}));
         revealContent();
         if (location.hash) {
             let id;
@@ -382,6 +389,8 @@ const API_BASE = (() => {
     }
 
     function renderFees(fees) {
+        window.sadaraFees = fees;
+        window.dispatchEvent(new CustomEvent('sadara:fees', {detail:fees}));
         const body = document.getElementById('fees-table-body');
         if (!body) return;
         body.replaceChildren();
@@ -437,6 +446,7 @@ const API_BASE = (() => {
             storage.set(cacheKey, JSON.stringify(data));
             if (!hasCache || JSON.stringify(data) !== JSON.stringify(cache)) render(data);
         } catch {
+            if (path === '/api/fees' && !hasCache) window.dispatchEvent(new Event('sadara:fees-error'));
             if (!object) showDataError(containers, retry, hasCache);
         } finally {
             containers.forEach(container => container?.setAttribute('aria-busy', 'false'));
@@ -472,7 +482,7 @@ const API_BASE = (() => {
             event.preventDefault();
             if (submitting || !form.reportValidity()) return;
             const data = getData();
-            if (Object.values(data).some(value => typeof value === 'string' && !value.trim())) {
+            if (Object.entries(data).some(([key, value]) => typeof value === 'string' && !value.trim() && !(path === '/api/contact' && key === 'phone'))) {
                 feedback.dataset.state = 'error';
                 feedback.setAttribute('role', 'alert');
                 feedback.textContent = 'يرجى تعبئة جميع الحقول المطلوبة بشكل صحيح.';
@@ -487,11 +497,12 @@ const API_BASE = (() => {
             form.setAttribute('aria-busy', 'true');
             feedback.hidden = true;
             try {
-                await apiRequest(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+                const result = await apiRequest(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
                 form.reset();
+                form.dispatchEvent(new Event('change', {bubbles:true}));
                 feedback.dataset.state = 'success';
                 feedback.setAttribute('role', 'status');
-                feedback.textContent = successMessage;
+                feedback.textContent = successMessage + (id === 'quick-admission-form' && Number.isInteger(result.id) ? ' رقم طلبك: SAD-' + String(result.id).padStart(5, '0') + '.' : '');
             } catch (error) {
                 feedback.dataset.state = 'error';
                 feedback.setAttribute('role', 'alert');
@@ -557,7 +568,7 @@ const API_BASE = (() => {
         const labsGrid = document.querySelector('.labs-grid');
         if (labsGrid) loadResource({ path: '/api/labs', cacheKey: 'sadara_labs', render: renderLabs, containers: [labsGrid] });
         const feesBody = document.getElementById('fees-table-body');
-        if (feesBody) loadResource({ path: '/api/fees', cacheKey: 'sadara_fees', render: renderFees, containers: [feesBody] });
+        if (feesBody || document.querySelector('[data-program-explorer]')) loadResource({ path: '/api/fees', cacheKey: 'sadara_fees', render: renderFees, containers: [feesBody] });
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();

@@ -1500,6 +1500,7 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
         window.loadApplicantsDashboard = function() {
             const tbody = document.querySelector('#applicants-full-table tbody');
             if (!tbody) return;
+            window.dispatchEvent(new Event('sadara:applicants-loading'));
 
             tbody.innerHTML = `
                 <tr>
@@ -1517,6 +1518,7 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
             })
             .then(res => res.json())
             .then(applicants => {
+                window.sadaraAdminApplicants = applicants;
                 tbody.innerHTML = '';
 
                 let totalCount = applicants.length;
@@ -1543,12 +1545,14 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
                             <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">لا توجد طلبات تسجيل حالياً.</td>
                         </tr>
                     `;
+                    window.dispatchEvent(new CustomEvent('sadara:applicants', {detail:applicants}));
                     return;
                 }
 
                 applicants.forEach(app => {
                     const tr = document.createElement('tr');
                     tr.className = 'table-row-animate';
+                    tr.dataset.applicantId = String(app.id);
 
                     let statusBadge = '';
                     let actionButtons = '';
@@ -1591,8 +1595,10 @@ const API_BASE = (window.SADARA_API_BASE || '').replace(/\/$/, '');
                     `;
                     tbody.appendChild(tr);
                 });
+                window.dispatchEvent(new CustomEvent('sadara:applicants', {detail:applicants}));
             })
             .catch(err => {
+                window.dispatchEvent(new Event('sadara:applicants-error'));
                 console.error('Error loading applicants:', err);
                     document.querySelector('#applicants-full-table tbody').innerHTML = '<tr><td colspan="7" class="empty-state">تعذر تحميل البيانات. افتح القسم مجدداً لإعادة المحاولة.</td></tr>';
                 showToast('فشل تحميل قائمة الطلاب.', 'danger');

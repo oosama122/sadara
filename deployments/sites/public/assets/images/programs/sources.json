@@ -1,0 +1,50 @@
+[
+  {
+    "code": "dental-tech",
+    "source_url": "https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&q=80&w=1000",
+    "name": "فني أسنان",
+    "bytes": 102166
+  },
+  {
+    "code": "operations",
+    "source_url": "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=1000",
+    "name": "فني عمليات وتعقيم",
+    "bytes": 54475
+  },
+  {
+    "code": "physician-assistant",
+    "source_url": "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=1000",
+    "name": "مساعد طبيب",
+    "bytes": 69228
+  },
+  {
+    "code": "laboratories",
+    "source_url": "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&q=80&w=1000",
+    "name": "مختبرات",
+    "bytes": 174349
+  },
+  {
+    "code": "business",
+    "source_url": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1000",
+    "name": "إدارة أعمال وتجارة إلكترونية",
+    "bytes": 94721
+  },
+  {
+    "code": "accounting",
+    "source_url": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=1000",
+    "name": "محاسبة مالية",
+    "bytes": 71588
+  },
+  {
+    "code": "it",
+    "source_url": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=1000",
+    "name": "تقنية معلومات (IT)",
+    "bytes": 72635
+  },
+  {
+    "code": "decor",
+    "source_url": "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&q=80&w=1000",
+    "name": "هندسة ديكور",
+    "bytes": 100737
+  }
+]

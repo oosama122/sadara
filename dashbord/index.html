@@ -7,6 +7,7 @@
     <title>لوحة التحكم الإدارية | كلية الصدارة</title>
     <link rel="stylesheet" href="css/style.css?v=3.0.0">
 
+<link rel="stylesheet" href="css/applicant-tools.css?v=4.0.0">
 </head>
 <body>
 
@@ -613,6 +614,7 @@
                     </div>
                 </div>
 
+                <section class="applicant-tools" id="applicant-tools" aria-labelledby="applicant-tools-title"><div class="applicant-tools-heading"><h2 id="applicant-tools-title">ابحث في الطلبات واعرض ما تحتاجه</h2><div class="applicant-tools-actions"><button type="button" class="btn btn-secondary" id="applicant-refresh">تحديث الطلبات ↻</button><button type="button" class="btn btn-primary" id="applicant-export" disabled>تصدير النتائج CSV ↓</button></div></div><div class="applicant-filters"><label><span>اسم الطالب أو الهاتف أو رقم الطلب</span><input type="search" id="applicant-search" placeholder="ابحث في الطلبات…" autocomplete="off"></label><label><span>حالة الطلب</span><select id="applicant-status-filter"><option value="">كل الحالات</option><option value="pending">قيد المراجعة</option><option value="approved">مقبول</option><option value="rejected">مرفوض</option></select></label><label><span>التخصص المطلوب</span><select id="applicant-department-filter"><option value="">كل التخصصات</option></select></label></div><div class="applicant-tools-footer"><span id="applicant-results-count" role="status" aria-live="polite">افتح القسم لتحميل الطلبات</span><button type="button" id="applicant-clear-filters">مسح المرشحات</button></div></section>
                 <div class="glass" style="padding: 30px; border-radius: 20px; border: 1px solid var(--border-color);">
                     <div class="table-responsive">
                         <table class="custom-table" id="applicants-full-table">
@@ -903,6 +905,7 @@
     <!-- ==========================================
        7. Interactive Admin Logic Script
        ========================================== -->
-    <script src="js/main.js?v=3.0.0" defer></script>
+    <script src="js/main.js?v=4.0.0" defer></script>
+<script type="module" src="js/applicant-tools.js?v=4.0.0"></script>
 </body>
 </html>

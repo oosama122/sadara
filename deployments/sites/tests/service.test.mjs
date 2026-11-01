@@ -29,7 +29,7 @@ const contact={name:'طالب اختبار',email:'student@example.com',phone:''
 test('existing content replaces broken default images once and preserves owner changes',async t=>{
  const {call,sqlite,env}=fixture(t);
  await call('/api/departments');
- sqlite.prepare('DELETE FROM settings WHERE key=?').run('__image_assets_v1');
+ sqlite.prepare('DELETE FROM settings WHERE key=?').run('__image_assets_v2');
  const [oldUrl,newUrl]=imageReplacements[0];
  sqlite.prepare('UPDATE departments SET image_url=? WHERE code=?').run(oldUrl,'pharmacy');
  sqlite.prepare('UPDATE labs SET image_url=? WHERE id=?').run(oldUrl,1);
@@ -42,7 +42,7 @@ test('existing content replaces broken default images once and preserves owner c
  sqlite.prepare('UPDATE departments SET image_url=? WHERE code=?').run('/media/new-owner-photo.webp','pharmacy');
  await refreshDefaultImages(env.DB);
  assert.equal(sqlite.prepare('SELECT image_url FROM departments WHERE code=?').get('pharmacy').image_url,'/media/new-owner-photo.webp');
- assert.ok(!('__image_assets_v1' in await (await call('/api/settings')).json()));
+ assert.ok(!('__image_assets_v2' in await (await call('/api/settings')).json()));
 });
 
 test('health verifies the database and returns no-store JSON',async t=>{const {call}=fixture(t);const response=await call('/api/health');assert.equal(response.status,200);assert.deepEqual(await response.json(),{status:'ok'});assert.equal(response.headers.get('cache-control'),'no-store');assert.equal((await handleApi(new Request('https://college.test/api/health'),{})).status,503);});
